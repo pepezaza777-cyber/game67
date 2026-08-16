@@ -137,6 +137,11 @@
     }
     .session-manager h3 { margin: 0; color: var(--yellow); font-size: 19px; }
     .session-manager > p { margin: 6px 0 15px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .manager-divider {
+      height: 1px;
+      margin: 22px 0;
+      background: #ffffff14;
+    }
     .session-result {
       display: grid;
       justify-items: center;
@@ -156,6 +161,7 @@
     }
     #qrHolder img { display: block; width: 100%; height: auto; image-rendering: pixelated; }
     .session-countdown { color: var(--green); font-size: 20px; font-weight: 1000; }
+    .permanent-badge { color: var(--green); font-size: 15px; font-weight: 1000; }
     .link-field {
       width: 100%;
       padding: 11px 13px;
@@ -173,6 +179,7 @@
       gap: 9px;
       width: 100%;
     }
+    .booth-actions .danger { grid-column: 1 / -1; }
     .button-link {
       display: grid;
       place-items: center;
@@ -221,12 +228,27 @@
       </div>
 
       <section id="sessionManager" class="session-manager" hidden>
-        <h3>🔗 ลิงก์และ QR อายุ 1 ชั่วโมง</h3>
+        <h3>🖥️ ลิงก์ประจำบูต</h3>
+        <p>สำหรับบันทึกไว้ในคอมประจำบูต ใช้งานได้จนกว่าจะกดยกเลิก หากสร้างใหม่ ลิงก์ประจำบูตอันเก่าจะถูกปิดอัตโนมัติ</p>
+        <button id="generateBoothButton" class="button" type="button">สร้างลิงก์ประจำบูต</button>
+        <div id="boothResult" class="session-result" hidden>
+          <strong id="boothState" class="permanent-badge">● พร้อมใช้งาน — ไม่มีวันหมดอายุ</strong>
+          <input id="boothLink" class="link-field" type="text" readonly aria-label="ลิงก์ประจำบูต" />
+          <div class="session-actions booth-actions">
+            <button id="copyBoothButton" class="button" type="button">คัดลอกลิงก์</button>
+            <a id="openBoothLink" class="button button-link" href="#" target="_blank" rel="noopener">เปิดเกมประจำบูต</a>
+            <button id="revokeBoothButton" class="button danger" type="button">ยกเลิกลิงก์ประจำบูต</button>
+          </div>
+        </div>
+
+        <div class="manager-divider" aria-hidden="true"></div>
+
+        <h3>🔗 ลิงก์และ QR อายุ 2 ชั่วโมง</h3>
         <p>สร้างรอบใหม่แล้วนำ QR ไปให้ผู้เล่นสแกน เมื่อครบเวลาเกมจะปฏิเสธลิงก์และหยุดรับคะแนนอัตโนมัติ</p>
         <button id="generateSessionButton" class="button" type="button">สร้างลิงก์และ QR รอบใหม่</button>
         <div id="sessionResult" class="session-result" hidden>
           <div id="qrHolder" aria-label="QR Code สำหรับเข้าเกม"></div>
-          <strong id="sessionCountdown" class="session-countdown">เหลือเวลา 60:00</strong>
+          <strong id="sessionCountdown" class="session-countdown">เหลือเวลา 2:00:00</strong>
           <input id="sessionLink" class="link-field" type="text" readonly aria-label="ลิงก์เข้าเกม" />
           <div class="session-actions">
             <button id="copyLinkButton" class="button" type="button">คัดลอกลิงก์</button>
@@ -253,10 +275,12 @@
       doc,
       getDocs,
       getFirestore,
+      query,
       serverTimestamp,
       setDoc,
       Timestamp,
       updateDoc,
+      where,
       writeBatch
     } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
     import {
@@ -289,6 +313,13 @@
     const authButton = document.querySelector("#authButton");
     const clearButton = document.querySelector("#clearButton");
     const sessionManager = document.querySelector("#sessionManager");
+    const generateBoothButton = document.querySelector("#generateBoothButton");
+    const boothResult = document.querySelector("#boothResult");
+    const boothState = document.querySelector("#boothState");
+    const boothLink = document.querySelector("#boothLink");
+    const copyBoothButton = document.querySelector("#copyBoothButton");
+    const openBoothLink = document.querySelector("#openBoothLink");
+    const revokeBoothButton = document.querySelector("#revokeBoothButton");
     const generateSessionButton = document.querySelector("#generateSessionButton");
     const sessionResult = document.querySelector("#sessionResult");
     const qrHolder = document.querySelector("#qrHolder");
@@ -300,6 +331,7 @@
     const revokeSessionButton = document.querySelector("#revokeSessionButton");
 
     let isAdmin = false;
+    let currentBoothSessionId = "";
     let currentSessionId = "";
     let currentSessionExpiresAt = 0;
     let countdownInterval;
@@ -319,14 +351,58 @@
       if (image) image.alt = "QR Code สำหรับเข้าเกม 67";
     }
 
+    function gameUrlForSession(sessionId) {
+      const gameUrl = new URL("index.html", window.location.href);
+      gameUrl.searchParams.set("s", sessionId);
+      return gameUrl.href;
+    }
+
+    function showBoothSession(sessionId) {
+      const link = gameUrlForSession(sessionId);
+      currentBoothSessionId = sessionId;
+      boothLink.value = link;
+      openBoothLink.href = link;
+      openBoothLink.hidden = false;
+      copyBoothButton.disabled = false;
+      revokeBoothButton.disabled = false;
+      boothState.textContent = "● พร้อมใช้งาน — ไม่มีวันหมดอายุ";
+      boothResult.hidden = false;
+    }
+
+    async function refreshBoothSession() {
+      const boothQuery = query(collection(db, "sessions"), where("permanent", "==", true));
+      const snapshot = await getDocs(boothQuery);
+      const activeSessions = snapshot.docs
+        .filter((document) => document.data().active === true)
+        .sort((a, b) => (b.data().createdAt?.toMillis?.() || 0) - (a.data().createdAt?.toMillis?.() || 0));
+
+      if (activeSessions.length) showBoothSession(activeSessions[0].id);
+      else {
+        currentBoothSessionId = "";
+        boothResult.hidden = true;
+      }
+    }
+
+    async function copyInput(input, button) {
+      try {
+        await navigator.clipboard.writeText(input.value);
+      } catch (_) {
+        input.select();
+        document.execCommand("copy");
+      }
+      button.textContent = "คัดลอกแล้ว ✓";
+      setTimeout(() => { button.textContent = "คัดลอกลิงก์"; }, 1500);
+    }
+
     function startCountdown() {
       clearInterval(countdownInterval);
       const update = () => {
         const remaining = Math.max(0, currentSessionExpiresAt - Date.now());
         const totalSeconds = Math.ceil(remaining / 1000);
-        const minutes = Math.floor(totalSeconds / 60);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
         const seconds = String(totalSeconds % 60).padStart(2, "0");
-        sessionCountdown.textContent = remaining > 0 ? `เหลือเวลา ${minutes}:${seconds}` : "ลิงก์หมดอายุแล้ว";
+        sessionCountdown.textContent = remaining > 0 ? `เหลือเวลา ${hours}:${minutes}:${seconds}` : "ลิงก์หมดอายุแล้ว";
         if (remaining <= 0) {
           clearInterval(countdownInterval);
           copyLinkButton.disabled = true;
@@ -361,16 +437,70 @@
         statusEl.textContent = "กรุณาเข้าสู่ระบบด้วยบัญชีผู้ดูแล";
         authButton.textContent = "เข้าสู่ระบบด้วย Google";
         scoreCount.textContent = "—";
+        boothResult.hidden = true;
         sessionResult.hidden = true;
       } else if (isAdmin) {
         statusEl.textContent = "ยืนยันบัญชีผู้ดูแลสำเร็จ คุณสามารถจัดการคะแนนได้";
         authButton.textContent = "ออกจากระบบ";
-        await refreshScoreCount();
+        await Promise.all([refreshScoreCount(), refreshBoothSession()]);
       } else {
         statusEl.textContent = "บัญชีนี้ไม่มีสิทธิ์จัดการคะแนน กรุณาออกแล้วใช้บัญชีแอดมิน";
         authButton.textContent = "ออกจากบัญชีนี้";
         scoreCount.textContent = "—";
+        boothResult.hidden = true;
         sessionResult.hidden = true;
+      }
+    });
+
+    generateBoothButton.addEventListener("click", async () => {
+      if (!isAdmin) return;
+      if (currentBoothSessionId && !window.confirm("การสร้างลิงก์ใหม่จะปิดลิงก์ประจำบูตอันเก่าทันที ต้องการดำเนินการต่อหรือไม่?")) return;
+
+      generateBoothButton.disabled = true;
+      generateBoothButton.textContent = "กำลังสร้างลิงก์…";
+      try {
+        const boothQuery = query(collection(db, "sessions"), where("permanent", "==", true));
+        const existingSessions = await getDocs(boothQuery);
+        const newSessionId = makeSessionId();
+        const batch = writeBatch(db);
+
+        existingSessions.docs
+          .filter((document) => document.data().active === true)
+          .forEach((document) => batch.update(document.ref, { active: false }));
+        batch.set(doc(db, "sessions", newSessionId), {
+          active: true,
+          createdAt: serverTimestamp(),
+          permanent: true
+        });
+        await batch.commit();
+
+        showBoothSession(newSessionId);
+        statusEl.textContent = "สร้างลิงก์ประจำบูตแล้ว ลิงก์นี้ใช้ได้จนกว่าจะยกเลิก";
+      } catch (error) {
+        console.error("Create booth session failed", error);
+        statusEl.textContent = "สร้างลิงก์ประจำบูตไม่สำเร็จ โปรดตรวจ Firestore Rules";
+      } finally {
+        generateBoothButton.disabled = false;
+        generateBoothButton.textContent = "สร้างลิงก์ประจำบูตใหม่";
+      }
+    });
+
+    copyBoothButton.addEventListener("click", () => copyInput(boothLink, copyBoothButton));
+
+    revokeBoothButton.addEventListener("click", async () => {
+      if (!isAdmin || !currentBoothSessionId || !window.confirm("ต้องการยกเลิกลิงก์ประจำบูตทันทีใช่หรือไม่?")) return;
+      revokeBoothButton.disabled = true;
+      try {
+        await updateDoc(doc(db, "sessions", currentBoothSessionId), { active: false });
+        boothState.textContent = "ลิงก์ประจำบูตถูกยกเลิกแล้ว";
+        copyBoothButton.disabled = true;
+        openBoothLink.hidden = true;
+        currentBoothSessionId = "";
+        statusEl.textContent = "ยกเลิกลิงก์ประจำบูตเรียบร้อยแล้ว";
+      } catch (error) {
+        console.error("Revoke booth session failed", error);
+        statusEl.textContent = "ยกเลิกลิงก์ประจำบูตไม่สำเร็จ โปรดลองใหม่";
+        revokeBoothButton.disabled = false;
       }
     });
 
@@ -380,25 +510,24 @@
       generateSessionButton.textContent = "กำลังสร้างรอบ…";
       try {
         currentSessionId = makeSessionId();
-        currentSessionExpiresAt = Date.now() + 60 * 60 * 1000;
+        currentSessionExpiresAt = Date.now() + 2 * 60 * 60 * 1000;
         await setDoc(doc(db, "sessions", currentSessionId), {
           active: true,
           createdAt: serverTimestamp(),
           expiresAt: Timestamp.fromMillis(currentSessionExpiresAt)
         });
 
-        const gameUrl = new URL("index.html", window.location.href);
-        gameUrl.searchParams.set("s", currentSessionId);
-        sessionLink.value = gameUrl.href;
-        openGameLink.href = gameUrl.href;
+        const gameUrl = gameUrlForSession(currentSessionId);
+        sessionLink.value = gameUrl;
+        openGameLink.href = gameUrl;
         openGameLink.hidden = false;
         copyLinkButton.disabled = false;
         downloadQrButton.disabled = false;
         revokeSessionButton.disabled = false;
-        renderQrCode(gameUrl.href);
+        renderQrCode(gameUrl);
         sessionResult.hidden = false;
         startCountdown();
-        statusEl.textContent = "สร้างรอบใหม่แล้ว QR นี้ใช้งานได้ 1 ชั่วโมง";
+        statusEl.textContent = "สร้างรอบใหม่แล้ว QR นี้ใช้งานได้ 2 ชั่วโมง";
       } catch (error) {
         console.error("Create session failed", error);
         statusEl.textContent = "สร้างรอบไม่สำเร็จ โปรดตรวจ Firestore Rules";
@@ -408,16 +537,7 @@
       }
     });
 
-    copyLinkButton.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(sessionLink.value);
-      } catch (_) {
-        sessionLink.select();
-        document.execCommand("copy");
-      }
-      copyLinkButton.textContent = "คัดลอกแล้ว ✓";
-      setTimeout(() => { copyLinkButton.textContent = "คัดลอกลิงก์"; }, 1500);
-    });
+    copyLinkButton.addEventListener("click", () => copyInput(sessionLink, copyLinkButton));
 
     downloadQrButton.addEventListener("click", () => {
       const image = qrHolder.querySelector("img");
