@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#170b38" />
+  <title>67 Live Dashboard</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #faf8ff;
+      --muted: #bdb5dc;
+      --yellow: #ffe66d;
+      --pink: #ff4fa1;
+      --green: #72f0a9;
+      --panel: rgba(20, 13, 51, .82);
+      --line: rgba(255, 255, 255, .13);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 9% 8%, #642bb5 0 7%, transparent 27%),
+        radial-gradient(circle at 92% 85%, #d83e91 0 7%, transparent 28%),
+        linear-gradient(145deg, #100729, #241151 55%, #110626);
+    }
+    button, a { font: inherit; }
+    button { cursor: pointer; }
+    .dashboard {
+      width: min(100%, 1180px);
+      margin: auto;
+      padding: clamp(16px, 3vw, 34px);
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+    .brand { display: flex; align-items: center; gap: 13px; }
+    .logo {
+      display: grid;
+      place-items: center;
+      width: 56px;
+      height: 56px;
+      border-radius: 17px;
+      color: #25103a;
+      background: var(--yellow);
+      box-shadow: 0 9px 28px #06001380;
+      font-size: 22px;
+      font-weight: 1000;
+      rotate: -7deg;
+    }
+    h1 { margin: 0; font-size: clamp(25px, 4vw, 42px); line-height: 1; }
+    .subtitle { margin: 5px 0 0; color: var(--muted); }
+    .header-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px; }
+    .pill-button {
+      min-height: 42px;
+      padding: 9px 15px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: #fff;
+      background: #160d38d9;
+      font-weight: 800;
+      text-decoration: none;
+      transition: translate .15s, background .15s;
+    }
+    .pill-button:hover { translate: 0 -2px; background: #281957; }
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 15px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .live-status { display: inline-flex; align-items: center; gap: 8px; }
+    .live-dot { width: 10px; height: 10px; border-radius: 50%; background: #f0b34c; box-shadow: 0 0 0 5px #f0b34c1f; }
+    .live-status.online { color: var(--green); }
+    .live-status.online .live-dot { background: var(--green); box-shadow: 0 0 0 5px #72f0a922; }
+    .live-status.error { color: #ff8fbf; }
+    .live-status.error .live-dot { background: #ff5e9f; }
+    .overview {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(150px, .72fr));
+      gap: 13px;
+      margin-bottom: 16px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 23px;
+      background: var(--panel);
+      box-shadow: 0 20px 55px #07001266;
+      backdrop-filter: blur(13px);
+    }
+    .champion {
+      position: relative;
+      min-height: 180px;
+      overflow: hidden;
+      padding: 24px;
+      background: linear-gradient(135deg, #38206cd9, #21104ad9);
+    }
+    .champion::after {
+      content: "67";
+      position: absolute;
+      right: 17px;
+      bottom: -31px;
+      color: #ffffff0b;
+      font-size: 170px;
+      font-weight: 1000;
+      rotate: -8deg;
+    }
+    .eyebrow { color: var(--yellow); font-size: 13px; font-weight: 900; letter-spacing: .08em; }
+    .champion-name {
+      position: relative;
+      z-index: 1;
+      overflow: hidden;
+      margin-top: 15px;
+      font-size: clamp(30px, 5vw, 54px);
+      font-weight: 1000;
+      line-height: 1;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .champion-score { position: relative; z-index: 1; margin-top: 12px; color: var(--yellow); font-size: 22px; font-weight: 900; }
+    .stat { display: grid; align-content: center; min-height: 180px; padding: 19px; text-align: center; }
+    .stat-label { color: var(--muted); font-size: 12px; font-weight: 800; }
+    .stat-value { margin-top: 10px; color: var(--yellow); font-size: clamp(31px, 5vw, 49px); font-weight: 1000; line-height: 1; }
+    .stat-note { overflow: hidden; margin-top: 8px; color: #d9d3ef; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+    .leaderboard-card { padding: clamp(15px, 2.5vw, 24px); }
+    .section-head { display: flex; align-items: end; justify-content: space-between; gap: 14px; margin-bottom: 15px; }
+    h2 { margin: 0; color: var(--yellow); font-size: clamp(21px, 3vw, 29px); }
+    .section-head p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+    .leaderboard-list { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
+    .leaderboard-list li {
+      display: grid;
+      grid-template-columns: 58px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 13px;
+      min-height: 58px;
+      padding: 9px 17px;
+      border: 1px solid #ffffff17;
+      border-radius: 16px;
+      background: #0b0626a8;
+    }
+    .leaderboard-list li:first-child { border-color: #ffe66d78; background: linear-gradient(90deg, #55411678, #170c38b8); }
+    .leaderboard-list li:nth-child(2) { border-color: #d9dcf050; }
+    .leaderboard-list li:nth-child(3) { border-color: #df9b6550; }
+    .rank { color: var(--muted); font-size: 17px; font-weight: 1000; text-align: center; }
+    .player { overflow: hidden; font-size: clamp(16px, 2.2vw, 21px); font-weight: 850; text-overflow: ellipsis; white-space: nowrap; }
+    .points { color: var(--yellow); font-size: clamp(20px, 3vw, 28px); font-weight: 1000; }
+    .points small { color: var(--muted); font-size: 11px; }
+    .empty { padding: 45px 15px; color: var(--muted); text-align: center; }
+    .admin-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 17px;
+      margin-top: 16px;
+      padding: 17px 20px;
+    }
+    .admin-card strong { color: #fff; }
+    .admin-card p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .admin-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px; }
+    .danger { border-color: #ff679f55; color: #ffd0e2; background: #651c3dbd; }
+    .danger:disabled { cursor: wait; opacity: .5; }
+    [hidden] { display: none !important; }
+    @media (max-width: 850px) {
+      .overview { grid-template-columns: 1fr 1fr 1fr; }
+      .champion { grid-column: 1 / -1; }
+      .stat { min-height: 125px; }
+    }
+    @media (max-width: 600px) {
+      header, .admin-card { align-items: flex-start; flex-direction: column; }
+      .header-actions, .admin-actions { justify-content: flex-start; }
+      .overview { grid-template-columns: 1fr; }
+      .champion { min-height: 155px; }
+      .stat { min-height: 100px; }
+      .leaderboard-list li { grid-template-columns: 42px minmax(0, 1fr) auto; padding: 8px 11px; }
+      .status-row { align-items: flex-start; flex-direction: column; }
+    }
+    :fullscreen .dashboard { width: min(100%, 1280px); }
+  </style>
+</head>
+<body>
+  <main class="dashboard">
+    <header>
+      <div class="brand">
+        <span class="logo">67</span>
+        <div>
+          <h1>Live Dashboard</h1>
+          <p class="subtitle">อันดับการแข่งขัน 67 Motion Game แบบเรียลไทม์</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a class="pill-button" href="index.html">← กลับไปหน้าเกม</a>
+        <button id="fullscreenButton" class="pill-button" type="button">⛶ เต็มจอ</button>
+      </div>
+    </header>
+
+    <div class="status-row">
+      <span id="liveStatus" class="live-status"><span class="live-dot"></span><span>กำลังเชื่อมต่อ Firebase…</span></span>
+      <span id="lastUpdated">ยังไม่มีการอัปเดต</span>
+    </div>
+
+    <section class="overview" aria-label="ภาพรวมการแข่งขัน">
+      <article class="card champion">
+        <span class="eyebrow">👑 ผู้นำปัจจุบัน</span>
+        <div id="championName" class="champion-name">รอผู้เล่นคนแรก</div>
+        <div id="championScore" class="champion-score">0 คะแนน</div>
+      </article>
+      <article class="card stat">
+        <span class="stat-label">ผู้เล่นทั้งหมด</span>
+        <strong id="playerCount" class="stat-value">0</strong>
+        <span class="stat-note">นับจากชื่อไม่ซ้ำ</span>
+      </article>
+      <article class="card stat">
+        <span class="stat-label">เล่นแล้วทั้งหมด</span>
+        <strong id="attemptCount" class="stat-value">0</strong>
+        <span class="stat-note">รอบการแข่งขัน</span>
+      </article>
+      <article class="card stat">
+        <span class="stat-label">คะแนนล่าสุด</span>
+        <strong id="latestScore" class="stat-value">0</strong>
+        <span id="latestPlayer" class="stat-note">ยังไม่มีผู้เล่น</span>
+      </article>
+    </section>
+
+    <section class="card leaderboard-card" aria-labelledby="leaderboardTitle">
+      <div class="section-head">
+        <div>
+          <h2 id="leaderboardTitle">🏆 10 อันดับสูงสุด</h2>
+          <p>ชื่อเดิมจะแสดงเฉพาะคะแนนที่ดีที่สุด</p>
+        </div>
+      </div>
+      <ol id="leaderboardList" class="leaderboard-list" aria-live="polite"></ol>
+      <div id="emptyState" class="empty">ยังไม่มีคะแนน เปิดหน้าเกมแล้วเริ่มการแข่งขันได้เลย</div>
+    </section>
+
+    <section class="card admin-card">
+      <div>
+        <strong>🔐 ส่วนควบคุมแอดมิน</strong>
+        <p id="adminStatus">ยังไม่ได้เข้าสู่ระบบ ปุ่มล้างคะแนนจึงถูกซ่อนไว้</p>
+      </div>
+      <div class="admin-actions">
+        <button id="authButton" class="pill-button" type="button">เข้าสู่ระบบด้วย Google</button>
+        <button id="clearButton" class="pill-button danger" type="button" hidden>ล้างคะแนนทั้งหมด</button>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+    import {
+      collection,
+      getDocs,
+      getFirestore,
+      onSnapshot,
+      writeBatch
+    } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+    import {
+      getAuth,
+      GoogleAuthProvider,
+      onAuthStateChanged,
+      signInWithPopup,
+      signOut
+    } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDAWVjSwgTt8OWdwhIuYq6Z7y2opAbmA_c",
+      authDomain: "game67-online.firebaseapp.com",
+      projectId: "game67-online",
+      storageBucket: "game67-online.firebasestorage.app",
+      messagingSenderId: "297633540129",
+      appId: "1:297633540129:web:4ed901896a50e75ea4db60"
+    };
+    const ADMIN_EMAIL = "pepezaza777@gmail.com";
+    const firebaseApp = initializeApp(firebaseConfig);
+    const db = getFirestore(firebaseApp);
+    const auth = getAuth(firebaseApp);
+    const provider = new GoogleAuthProvider();
+
+    const liveStatus = document.querySelector("#liveStatus");
+    const lastUpdated = document.querySelector("#lastUpdated");
+    const championName = document.querySelector("#championName");
+    const championScore = document.querySelector("#championScore");
+    const playerCount = document.querySelector("#playerCount");
+    const attemptCount = document.querySelector("#attemptCount");
+    const latestScore = document.querySelector("#latestScore");
+    const latestPlayer = document.querySelector("#latestPlayer");
+    const leaderboardList = document.querySelector("#leaderboardList");
+    const emptyState = document.querySelector("#emptyState");
+    const adminStatus = document.querySelector("#adminStatus");
+    const authButton = document.querySelector("#authButton");
+    const clearButton = document.querySelector("#clearButton");
+    const fullscreenButton = document.querySelector("#fullscreenButton");
+
+    let isAdmin = false;
+
+    function normalizedName(name) {
+      return String(name || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("th");
+    }
+
+    function timestampMillis(value) {
+      return value?.toMillis?.() || 0;
+    }
+
+    function setConnectionStatus(text, state = "") {
+      liveStatus.className = `live-status ${state}`.trim();
+      liveStatus.lastElementChild.textContent = text;
+    }
+
+    function renderScores(entries) {
+      const validEntries = entries
+        .filter((entry) => entry.name && Number.isFinite(Number(entry.score)))
+        .map((entry) => ({
+          name: String(entry.name).trim().slice(0, 20),
+          score: Math.max(0, Math.floor(Number(entry.score))),
+          playedAt: entry.playedAt
+        }));
+
+      const bestByPlayer = new Map();
+      for (const entry of validEntries) {
+        const key = normalizedName(entry.name);
+        if (!key) continue;
+        const previous = bestByPlayer.get(key);
+        if (!previous || entry.score > previous.score || (
+          entry.score === previous.score && timestampMillis(entry.playedAt) < timestampMillis(previous.playedAt)
+        )) bestByPlayer.set(key, entry);
+      }
+
+      const ranked = [...bestByPlayer.values()].sort((a, b) =>
+        b.score - a.score || timestampMillis(a.playedAt) - timestampMillis(b.playedAt)
+      );
+      const latest = [...validEntries].sort((a, b) => timestampMillis(b.playedAt) - timestampMillis(a.playedAt))[0];
+
+      playerCount.textContent = ranked.length;
+      attemptCount.textContent = validEntries.length;
+      latestScore.textContent = latest?.score ?? 0;
+      latestPlayer.textContent = latest ? latest.name : "ยังไม่มีผู้เล่น";
+      championName.textContent = ranked[0]?.name || "รอผู้เล่นคนแรก";
+      championScore.textContent = `${ranked[0]?.score || 0} คะแนน`;
+
+      leaderboardList.replaceChildren();
+      const topTen = ranked.slice(0, 10);
+      emptyState.hidden = topTen.length > 0;
+      topTen.forEach((entry, index) => {
+        const item = document.createElement("li");
+        const rank = document.createElement("span");
+        const player = document.createElement("span");
+        const points = document.createElement("strong");
+        rank.className = "rank";
+        player.className = "player";
+        points.className = "points";
+        rank.textContent = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}`;
+        player.textContent = entry.name;
+        points.textContent = `${entry.score} `;
+        const suffix = document.createElement("small");
+        suffix.textContent = "คะแนน";
+        points.appendChild(suffix);
+        item.append(rank, player, points);
+        leaderboardList.appendChild(item);
+      });
+
+      setConnectionStatus("ออนไลน์ • อันดับอัปเดตอัตโนมัติ", "online");
+      lastUpdated.textContent = `อัปเดตล่าสุด ${new Intl.DateTimeFormat("th-TH", { timeStyle: "medium" }).format(new Date())}`;
+    }
+
+    onSnapshot(collection(db, "scores"), (snapshot) => {
+      renderScores(snapshot.docs.map((document) => document.data()));
+    }, (error) => {
+      console.error("Dashboard listener failed", error);
+      setConnectionStatus("เชื่อมต่อคะแนนไม่ได้ โปรดตรวจอินเทอร์เน็ตหรือ Rules", "error");
+    });
+
+    onAuthStateChanged(auth, (user) => {
+      isAdmin = user?.email?.toLocaleLowerCase() === ADMIN_EMAIL;
+      clearButton.hidden = !isAdmin;
+      if (!user) {
+        adminStatus.textContent = "ยังไม่ได้เข้าสู่ระบบ ปุ่มล้างคะแนนจึงถูกซ่อนไว้";
+        authButton.textContent = "เข้าสู่ระบบด้วย Google";
+      } else if (isAdmin) {
+        adminStatus.textContent = `เข้าสู่ระบบแอดมินแล้ว: ${user.email}`;
+        authButton.textContent = "ออกจากระบบ";
+      } else {
+        adminStatus.textContent = `บัญชี ${user.email} ไม่มีสิทธิ์ล้างคะแนน กรุณาออกแล้วใช้บัญชีแอดมิน`;
+        authButton.textContent = "ออกจากบัญชีนี้";
+      }
+    });
+
+    authButton.addEventListener("click", async () => {
+      authButton.disabled = true;
+      try {
+        if (auth.currentUser) await signOut(auth);
+        else await signInWithPopup(auth, provider);
+      } catch (error) {
+        console.error("Admin sign-in failed", error);
+        adminStatus.textContent = "เข้าสู่ระบบไม่สำเร็จ โปรดตรวจว่าเปิด Google Sign-in และอนุญาตโดเมน GitHub แล้ว";
+      } finally {
+        authButton.disabled = false;
+      }
+    });
+
+    clearButton.addEventListener("click", async () => {
+      if (!isAdmin || !window.confirm("ต้องการล้างคะแนนออนไลน์ทั้งหมดจริงหรือไม่? การทำรายการนี้ย้อนกลับไม่ได้")) return;
+      clearButton.disabled = true;
+      clearButton.textContent = "กำลังล้าง…";
+      try {
+        const snapshot = await getDocs(collection(db, "scores"));
+        const documents = snapshot.docs;
+        for (let start = 0; start < documents.length; start += 450) {
+          const batch = writeBatch(db);
+          documents.slice(start, start + 450).forEach((document) => batch.delete(document.ref));
+          await batch.commit();
+        }
+        adminStatus.textContent = `ล้างคะแนน ${documents.length} รายการเรียบร้อยแล้ว`;
+      } catch (error) {
+        console.error("Clear scores failed", error);
+        adminStatus.textContent = "ล้างคะแนนไม่สำเร็จ โปรดตรวจบัญชีแอดมินและ Firestore Rules";
+      } finally {
+        clearButton.disabled = false;
+        clearButton.textContent = "ล้างคะแนนทั้งหมด";
+      }
+    });
+
+    fullscreenButton.addEventListener("click", async () => {
+      try {
+        if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+        else await document.exitFullscreen();
+      } catch (_) { /* บางเบราว์เซอร์ไม่รองรับเต็มจอ */ }
+    });
+    document.addEventListener("fullscreenchange", () => {
+      fullscreenButton.textContent = document.fullscreenElement ? "✕ ออกจากเต็มจอ" : "⛶ เต็มจอ";
+    });
+  </script>
+</body>
+</html>
