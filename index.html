@@ -510,25 +510,26 @@
 
     async function validateSession() {
       if (!/^[a-f0-9]{32}$/.test(sessionId)) {
-        showAccessError("ต้องสแกน QR เพื่อเข้าเล่น", "ลิงก์ตรงจะไม่เปิดเกม กรุณาสแกน QR ของรอบการแข่งขันจากผู้จัดงาน");
+        showAccessError("ต้องใช้ลิงก์จากผู้จัดงาน", "กรุณาเปิดลิงก์ประจำบูต หรือสแกน QR ของรอบการแข่งขันจากผู้จัดงาน");
         return false;
       }
 
       try {
         const snapshot = await getDocFromServer(doc(db, "sessions", sessionId));
         const data = snapshot.data();
+        const isPermanent = data?.permanent === true;
         const expiresAt = data?.expiresAt?.toMillis?.() || 0;
-        if (!snapshot.exists() || data?.active !== true || expiresAt <= Date.now()) {
-          showAccessError("ลิงก์หมดอายุแล้ว", "QR นี้ใช้งานไม่ได้แล้ว กรุณาขอ QR รอบใหม่จากผู้จัดงาน");
+        if (!snapshot.exists() || data?.active !== true || (!isPermanent && expiresAt <= Date.now())) {
+          showAccessError("ลิงก์ใช้งานไม่ได้แล้ว", "กรุณาขอลิงก์หรือ QR รอบใหม่จากผู้จัดงาน");
           return false;
         }
-        sessionExpiresAt = expiresAt;
+        sessionExpiresAt = isPermanent ? Number.POSITIVE_INFINITY : expiresAt;
         accessReady = true;
         accessScreen.classList.add("hidden");
         return true;
       } catch (error) {
         console.error("Session validation failed", error);
-        showAccessError("ลิงก์หมดอายุหรือไม่ถูกต้อง", "กรุณาขอ QR รอบใหม่จากผู้จัดงาน แล้วสแกนอีกครั้ง");
+        showAccessError("ลิงก์หมดอายุหรือไม่ถูกต้อง", "กรุณาขอลิงก์หรือ QR รอบใหม่จากผู้จัดงาน");
         return false;
       }
     }
@@ -969,8 +970,8 @@
       } catch (error) {
         console.error("Score save failed", error);
         if (error?.code === "permission-denied") {
-          startMessage.textContent = `${currentPlayerName} ได้ ${score} คะแนน แต่ลิงก์หมดอายุก่อนบันทึก`;
-          setFeedback("ลิงก์หมดอายุ กรุณาสแกน QR รอบใหม่");
+          startMessage.textContent = `${currentPlayerName} ได้ ${score} คะแนน แต่ลิงก์ถูกยกเลิกหรือหมดอายุก่อนบันทึก`;
+          setFeedback("ลิงก์ใช้ไม่ได้แล้ว กรุณาขอลิงก์ใหม่");
         } else {
           startMessage.textContent = `${currentPlayerName} ได้ ${score} คะแนน แต่บันทึกออนไลน์ไม่สำเร็จ โปรดลองอีกครั้ง`;
           setFeedback("บันทึกคะแนนไม่สำเร็จ โปรดตรวจอินเทอร์เน็ต");
@@ -1000,7 +1001,7 @@
     async function startGame() {
       if (startButton.disabled || running) return;
       if (!accessReady || Date.now() + (GAME_SECONDS + 5) * 1000 >= sessionExpiresAt) {
-        showAccessError("ลิงก์หมดอายุแล้ว", "กรุณาขอ QR รอบใหม่จากผู้จัดงานก่อนเริ่มเกม");
+        showAccessError("ลิงก์ใช้งานไม่ได้แล้ว", "กรุณาขอลิงก์หรือ QR รอบใหม่จากผู้จัดงานก่อนเริ่มเกม");
         return;
       }
       if (!await validateSession()) return;
