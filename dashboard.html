@@ -156,19 +156,6 @@
     .points { color: var(--yellow); font-size: clamp(20px, 3vw, 28px); font-weight: 1000; }
     .points small { color: var(--muted); font-size: 11px; }
     .empty { padding: 45px 15px; color: var(--muted); text-align: center; }
-    .admin-card {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 17px;
-      margin-top: 16px;
-      padding: 17px 20px;
-    }
-    .admin-card strong { color: #fff; }
-    .admin-card p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
-    .admin-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px; }
-    .danger { border-color: #ff679f55; color: #ffd0e2; background: #651c3dbd; }
-    .danger:disabled { cursor: wait; opacity: .5; }
     [hidden] { display: none !important; }
     @media (max-width: 850px) {
       .overview { grid-template-columns: 1fr 1fr 1fr; }
@@ -176,8 +163,8 @@
       .stat { min-height: 125px; }
     }
     @media (max-width: 600px) {
-      header, .admin-card { align-items: flex-start; flex-direction: column; }
-      .header-actions, .admin-actions { justify-content: flex-start; }
+      header { align-items: flex-start; flex-direction: column; }
+      .header-actions { justify-content: flex-start; }
       .overview { grid-template-columns: 1fr; }
       .champion { min-height: 155px; }
       .stat { min-height: 100px; }
@@ -241,35 +228,15 @@
       <ol id="leaderboardList" class="leaderboard-list" aria-live="polite"></ol>
       <div id="emptyState" class="empty">ยังไม่มีคะแนน เปิดหน้าเกมแล้วเริ่มการแข่งขันได้เลย</div>
     </section>
-
-    <section class="card admin-card">
-      <div>
-        <strong>🔐 ส่วนควบคุมแอดมิน</strong>
-        <p id="adminStatus">ยังไม่ได้เข้าสู่ระบบ ปุ่มล้างคะแนนจึงถูกซ่อนไว้</p>
-      </div>
-      <div class="admin-actions">
-        <button id="authButton" class="pill-button" type="button">เข้าสู่ระบบด้วย Google</button>
-        <button id="clearButton" class="pill-button danger" type="button" hidden>ล้างคะแนนทั้งหมด</button>
-      </div>
-    </section>
   </main>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
     import {
       collection,
-      getDocs,
       getFirestore,
-      onSnapshot,
-      writeBatch
+      onSnapshot
     } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
-    import {
-      getAuth,
-      GoogleAuthProvider,
-      onAuthStateChanged,
-      signInWithPopup,
-      signOut
-    } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDAWVjSwgTt8OWdwhIuYq6Z7y2opAbmA_c",
@@ -279,11 +246,8 @@
       messagingSenderId: "297633540129",
       appId: "1:297633540129:web:4ed901896a50e75ea4db60"
     };
-    const ADMIN_EMAIL = "pepezaza777@gmail.com";
     const firebaseApp = initializeApp(firebaseConfig);
     const db = getFirestore(firebaseApp);
-    const auth = getAuth(firebaseApp);
-    const provider = new GoogleAuthProvider();
 
     const liveStatus = document.querySelector("#liveStatus");
     const lastUpdated = document.querySelector("#lastUpdated");
@@ -295,12 +259,7 @@
     const latestPlayer = document.querySelector("#latestPlayer");
     const leaderboardList = document.querySelector("#leaderboardList");
     const emptyState = document.querySelector("#emptyState");
-    const adminStatus = document.querySelector("#adminStatus");
-    const authButton = document.querySelector("#authButton");
-    const clearButton = document.querySelector("#clearButton");
     const fullscreenButton = document.querySelector("#fullscreenButton");
-
-    let isAdmin = false;
 
     function normalizedName(name) {
       return String(name || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("th");
@@ -376,56 +335,6 @@
     }, (error) => {
       console.error("Dashboard listener failed", error);
       setConnectionStatus("เชื่อมต่อคะแนนไม่ได้ โปรดตรวจอินเทอร์เน็ตหรือ Rules", "error");
-    });
-
-    onAuthStateChanged(auth, (user) => {
-      isAdmin = user?.email?.toLocaleLowerCase() === ADMIN_EMAIL;
-      clearButton.hidden = !isAdmin;
-      if (!user) {
-        adminStatus.textContent = "ยังไม่ได้เข้าสู่ระบบ ปุ่มล้างคะแนนจึงถูกซ่อนไว้";
-        authButton.textContent = "เข้าสู่ระบบด้วย Google";
-      } else if (isAdmin) {
-        adminStatus.textContent = `เข้าสู่ระบบแอดมินแล้ว: ${user.email}`;
-        authButton.textContent = "ออกจากระบบ";
-      } else {
-        adminStatus.textContent = `บัญชี ${user.email} ไม่มีสิทธิ์ล้างคะแนน กรุณาออกแล้วใช้บัญชีแอดมิน`;
-        authButton.textContent = "ออกจากบัญชีนี้";
-      }
-    });
-
-    authButton.addEventListener("click", async () => {
-      authButton.disabled = true;
-      try {
-        if (auth.currentUser) await signOut(auth);
-        else await signInWithPopup(auth, provider);
-      } catch (error) {
-        console.error("Admin sign-in failed", error);
-        adminStatus.textContent = "เข้าสู่ระบบไม่สำเร็จ โปรดตรวจว่าเปิด Google Sign-in และอนุญาตโดเมน GitHub แล้ว";
-      } finally {
-        authButton.disabled = false;
-      }
-    });
-
-    clearButton.addEventListener("click", async () => {
-      if (!isAdmin || !window.confirm("ต้องการล้างคะแนนออนไลน์ทั้งหมดจริงหรือไม่? การทำรายการนี้ย้อนกลับไม่ได้")) return;
-      clearButton.disabled = true;
-      clearButton.textContent = "กำลังล้าง…";
-      try {
-        const snapshot = await getDocs(collection(db, "scores"));
-        const documents = snapshot.docs;
-        for (let start = 0; start < documents.length; start += 450) {
-          const batch = writeBatch(db);
-          documents.slice(start, start + 450).forEach((document) => batch.delete(document.ref));
-          await batch.commit();
-        }
-        adminStatus.textContent = `ล้างคะแนน ${documents.length} รายการเรียบร้อยแล้ว`;
-      } catch (error) {
-        console.error("Clear scores failed", error);
-        adminStatus.textContent = "ล้างคะแนนไม่สำเร็จ โปรดตรวจบัญชีแอดมินและ Firestore Rules";
-      } finally {
-        clearButton.disabled = false;
-        clearButton.textContent = "ล้างคะแนนทั้งหมด";
-      }
     });
 
     fullscreenButton.addEventListener("click", async () => {

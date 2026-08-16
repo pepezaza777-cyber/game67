@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#170b38" />
+  <title>67 Admin Console</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #faf8ff;
+      --muted: #bdb5dc;
+      --yellow: #ffe66d;
+      --pink: #ff4fa1;
+      --green: #72f0a9;
+      --line: rgba(255, 255, 255, .14);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      color: var(--ink);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 12% 10%, #6028ad 0 7%, transparent 28%),
+        radial-gradient(circle at 88% 88%, #d83e91 0 7%, transparent 28%),
+        linear-gradient(145deg, #100729, #241151 55%, #110626);
+    }
+    button, a { font: inherit; }
+    button { cursor: pointer; }
+    .shell { width: min(100%, 620px); }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 16px;
+    }
+    .brand { display: flex; align-items: center; gap: 13px; }
+    .logo {
+      display: grid;
+      place-items: center;
+      width: 54px;
+      height: 54px;
+      border-radius: 17px;
+      color: #25103a;
+      background: var(--yellow);
+      box-shadow: 0 9px 28px #06001380;
+      font-size: 21px;
+      font-weight: 1000;
+      rotate: -7deg;
+    }
+    h1 { margin: 0; font-size: clamp(24px, 5vw, 34px); line-height: 1; }
+    .subtitle { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+    .back-link {
+      padding: 9px 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: #fff;
+      background: #160d38d9;
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .card {
+      padding: clamp(22px, 5vw, 34px);
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      background: rgba(20, 13, 51, .88);
+      box-shadow: 0 28px 80px #05000d9c;
+      backdrop-filter: blur(14px);
+    }
+    .lock {
+      display: grid;
+      place-items: center;
+      width: 58px;
+      height: 58px;
+      margin-bottom: 18px;
+      border: 1px solid #ffffff20;
+      border-radius: 18px;
+      background: #ffffff0a;
+      font-size: 27px;
+    }
+    h2 { margin: 0; color: var(--yellow); font-size: 24px; }
+    #status {
+      margin: 9px 0 21px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .account {
+      display: grid;
+      gap: 11px;
+      margin-bottom: 18px;
+      padding: 15px;
+      border: 1px solid #72f0a933;
+      border-radius: 17px;
+      background: #12342561;
+    }
+    .account-label { color: var(--green); font-size: 12px; font-weight: 900; letter-spacing: .05em; }
+    #accountEmail { overflow: hidden; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+    .score-count {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding-top: 12px;
+      border-top: 1px solid #ffffff13;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    #scoreCount { color: var(--yellow); font-size: 24px; font-weight: 1000; }
+    .actions { display: grid; gap: 10px; }
+    .button {
+      min-height: 48px;
+      padding: 11px 18px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      color: #fff;
+      background: #281957;
+      font-weight: 900;
+    }
+    .button:hover { filter: brightness(1.12); }
+    .button:disabled { cursor: wait; opacity: .55; }
+    .danger {
+      border-color: #ff6ca454;
+      color: #ffd4e5;
+      background: linear-gradient(135deg, #681b41, #44132f);
+    }
+    .note {
+      margin: 17px 0 0;
+      color: #978daf;
+      font-size: 12px;
+      line-height: 1.55;
+      text-align: center;
+    }
+    [hidden] { display: none !important; }
+    @media (max-width: 520px) {
+      header { align-items: flex-start; flex-direction: column; }
+      .back-link { align-self: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="brand">
+        <span class="logo">67</span>
+        <div>
+          <h1>Admin Console</h1>
+          <p class="subtitle">จัดการข้อมูลการแข่งขัน</p>
+        </div>
+      </div>
+      <a class="back-link" href="dashboard.html">← Dashboard</a>
+    </header>
+
+    <section class="card">
+      <div class="lock">🔐</div>
+      <h2>สำหรับผู้ดูแลเท่านั้น</h2>
+      <p id="status">กรุณาเข้าสู่ระบบด้วยบัญชีผู้ดูแล</p>
+
+      <div id="accountBox" class="account" hidden>
+        <span class="account-label">เข้าสู่ระบบแล้ว</span>
+        <strong id="accountEmail">—</strong>
+        <div class="score-count">
+          <span>รายการคะแนนในระบบ</span>
+          <strong id="scoreCount">—</strong>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="authButton" class="button" type="button">เข้าสู่ระบบด้วย Google</button>
+        <button id="clearButton" class="button danger" type="button" hidden>ล้างคะแนนทั้งหมด</button>
+      </div>
+      <p class="note">หน้านี้ไม่ได้เชื่อมจากหน้าเกมหรือ Dashboard และการล้างคะแนนต้องยืนยันด้วยบัญชีแอดมิน</p>
+    </section>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+    import {
+      collection,
+      getDocs,
+      getFirestore,
+      writeBatch
+    } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+    import {
+      getAuth,
+      GoogleAuthProvider,
+      onAuthStateChanged,
+      signInWithPopup,
+      signOut
+    } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDAWVjSwgTt8OWdwhIuYq6Z7y2opAbmA_c",
+      authDomain: "game67-online.firebaseapp.com",
+      projectId: "game67-online",
+      storageBucket: "game67-online.firebasestorage.app",
+      messagingSenderId: "297633540129",
+      appId: "1:297633540129:web:4ed901896a50e75ea4db60"
+    };
+    const ADMIN_EMAIL = "pepezaza777@gmail.com";
+    const firebaseApp = initializeApp(firebaseConfig);
+    const db = getFirestore(firebaseApp);
+    const auth = getAuth(firebaseApp);
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+
+    const statusEl = document.querySelector("#status");
+    const accountBox = document.querySelector("#accountBox");
+    const accountEmail = document.querySelector("#accountEmail");
+    const scoreCount = document.querySelector("#scoreCount");
+    const authButton = document.querySelector("#authButton");
+    const clearButton = document.querySelector("#clearButton");
+
+    let isAdmin = false;
+
+    async function refreshScoreCount() {
+      scoreCount.textContent = "…";
+      try {
+        const snapshot = await getDocs(collection(db, "scores"));
+        scoreCount.textContent = snapshot.size;
+      } catch (error) {
+        console.error("Count scores failed", error);
+        scoreCount.textContent = "—";
+      }
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      isAdmin = user?.email?.toLocaleLowerCase() === ADMIN_EMAIL;
+      accountBox.hidden = !user;
+      accountEmail.textContent = user?.email || "—";
+      clearButton.hidden = !isAdmin;
+
+      if (!user) {
+        statusEl.textContent = "กรุณาเข้าสู่ระบบด้วยบัญชีผู้ดูแล";
+        authButton.textContent = "เข้าสู่ระบบด้วย Google";
+        scoreCount.textContent = "—";
+      } else if (isAdmin) {
+        statusEl.textContent = "ยืนยันบัญชีผู้ดูแลสำเร็จ คุณสามารถจัดการคะแนนได้";
+        authButton.textContent = "ออกจากระบบ";
+        await refreshScoreCount();
+      } else {
+        statusEl.textContent = "บัญชีนี้ไม่มีสิทธิ์จัดการคะแนน กรุณาออกแล้วใช้บัญชีแอดมิน";
+        authButton.textContent = "ออกจากบัญชีนี้";
+        scoreCount.textContent = "—";
+      }
+    });
+
+    authButton.addEventListener("click", async () => {
+      authButton.disabled = true;
+      try {
+        if (auth.currentUser) await signOut(auth);
+        else await signInWithPopup(auth, provider);
+      } catch (error) {
+        console.error("Admin sign-in failed", error);
+        statusEl.textContent = "เข้าสู่ระบบไม่สำเร็จ โปรดลองใหม่อีกครั้ง";
+      } finally {
+        authButton.disabled = false;
+      }
+    });
+
+    clearButton.addEventListener("click", async () => {
+      if (!isAdmin) return;
+      const confirmation = window.prompt('การล้างคะแนนย้อนกลับไม่ได้ พิมพ์คำว่า "ล้าง" เพื่อยืนยัน');
+      if (confirmation?.trim() !== "ล้าง") return;
+
+      clearButton.disabled = true;
+      clearButton.textContent = "กำลังล้างคะแนน…";
+      try {
+        const snapshot = await getDocs(collection(db, "scores"));
+        const documents = snapshot.docs;
+        for (let start = 0; start < documents.length; start += 450) {
+          const batch = writeBatch(db);
+          documents.slice(start, start + 450).forEach((document) => batch.delete(document.ref));
+          await batch.commit();
+        }
+        statusEl.textContent = `ล้างคะแนน ${documents.length} รายการเรียบร้อยแล้ว`;
+        scoreCount.textContent = "0";
+      } catch (error) {
+        console.error("Clear scores failed", error);
+        statusEl.textContent = "ล้างคะแนนไม่สำเร็จ โปรดตรวจบัญชีแอดมินและ Firestore Rules";
+      } finally {
+        clearButton.disabled = false;
+        clearButton.textContent = "ล้างคะแนนทั้งหมด";
+      }
+    });
+  </script>
+</body>
+</html>
