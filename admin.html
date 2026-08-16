@@ -99,7 +99,7 @@
       background: #12342561;
     }
     .account-label { color: var(--green); font-size: 12px; font-weight: 900; letter-spacing: .05em; }
-    #accountEmail { overflow: hidden; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+    #accountName { overflow: hidden; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
     .score-count {
       display: flex;
       align-items: center;
@@ -162,7 +162,7 @@
 
       <div id="accountBox" class="account" hidden>
         <span class="account-label">เข้าสู่ระบบแล้ว</span>
-        <strong id="accountEmail">—</strong>
+        <strong id="accountName">—</strong>
         <div class="score-count">
           <span>รายการคะแนนในระบบ</span>
           <strong id="scoreCount">—</strong>
@@ -201,7 +201,7 @@
       messagingSenderId: "297633540129",
       appId: "1:297633540129:web:4ed901896a50e75ea4db60"
     };
-    const ADMIN_EMAIL = "pepezaza777@gmail.com";
+    const ADMIN_UID = "I8toSUp1E2ZRADXB3AMvmMu3HBc2";
     const firebaseApp = initializeApp(firebaseConfig);
     const db = getFirestore(firebaseApp);
     const auth = getAuth(firebaseApp);
@@ -210,7 +210,7 @@
 
     const statusEl = document.querySelector("#status");
     const accountBox = document.querySelector("#accountBox");
-    const accountEmail = document.querySelector("#accountEmail");
+    const accountName = document.querySelector("#accountName");
     const scoreCount = document.querySelector("#scoreCount");
     const authButton = document.querySelector("#authButton");
     const clearButton = document.querySelector("#clearButton");
@@ -229,9 +229,9 @@
     }
 
     onAuthStateChanged(auth, async (user) => {
-      isAdmin = user?.email?.toLocaleLowerCase() === ADMIN_EMAIL;
+      isAdmin = user?.uid === ADMIN_UID;
       accountBox.hidden = !user;
-      accountEmail.textContent = user?.email || "—";
+      accountName.textContent = user?.displayName || "บัญชี Google";
       clearButton.hidden = !isAdmin;
 
       if (!user) {
