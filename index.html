@@ -426,7 +426,6 @@
     const PAIR_TRACK_HOLD = 240;
     const PAIR_LOSS_GRACE = 320;
     const LEADERBOARD_KEY = "67-motion-leaderboard-v1";
-    const LAST_PLAYER_KEY = "67-motion-last-player";
 
     const video = document.querySelector("#webcam");
     const stage = document.querySelector(".stage");
@@ -481,16 +480,12 @@
     let keepScreenAwake = false;
 
     bestEl.textContent = bestScore;
-    playerNameInput.value = loadLastPlayer();
+    playerNameInput.value = "";
+    try { localStorage.removeItem("67-motion-last-player"); } catch (_) { /* ล้างชื่อเก่าไม่ได้ก็ไม่กระทบเกม */ }
     renderLeaderboard();
 
     function normalizePlayerName(value) {
       return value.trim().replace(/\s+/g, " ").slice(0, 20);
-    }
-
-    function loadLastPlayer() {
-      try { return localStorage.getItem(LAST_PLAYER_KEY) || ""; }
-      catch (_) { return ""; }
     }
 
     function loadLeaderboard() {
@@ -980,6 +975,8 @@
         const rankText = result.rank <= 10 ? ` • อันดับที่ ${result.rank}` : "";
         startMessage.textContent = `รอบนี้ได้ ${score} • สถิติสูงสุดของ ${currentPlayerName} คือ ${result.personalBest}${rankText}`;
       }
+      playerNameInput.value = "";
+      nameError.textContent = "";
       startButton.textContent = "เล่นอีกครั้ง";
       startButton.disabled = false;
       setFeedback("เกมจบแล้ว");
@@ -1012,7 +1009,6 @@
       currentPlayerName = enteredName;
       playerNameInput.value = enteredName;
       nameError.textContent = "";
-      try { localStorage.setItem(LAST_PLAYER_KEY, enteredName); } catch (_) { /* เล่นต่อได้แม้บันทึกชื่อล่าสุดไม่ได้ */ }
 
       try {
         startButton.disabled = true;
