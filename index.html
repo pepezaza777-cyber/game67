@@ -195,6 +195,36 @@
     .start-screen.hidden { display: none; }
     .start-screen .big { margin: 0; font-size: clamp(48px, 12vw, 96px); font-weight: 1000; line-height: .8; color: var(--yellow); text-shadow: 0 4px 0 #ff4fa1; }
     .start-screen p { max-width: 510px; margin: 0; color: #e4dfff; line-height: 1.55; }
+    .player-entry {
+      display: grid;
+      gap: 6px;
+      width: min(100%, 330px);
+    }
+    .player-entry label {
+      color: var(--yellow);
+      font-size: 13px;
+      font-weight: 850;
+    }
+    #playerName {
+      width: 100%;
+      padding: 11px 15px;
+      border: 2px solid #ffffff38;
+      border-radius: 14px;
+      outline: none;
+      color: #fff;
+      background: #0c0625bd;
+      font: inherit;
+      font-size: 17px;
+      font-weight: 750;
+      text-align: center;
+    }
+    #playerName:focus { border-color: var(--yellow); box-shadow: 0 0 0 3px #ffe66d25; }
+    .start-screen .name-error {
+      min-height: 18px;
+      color: #ff9ac8;
+      font-size: 12px;
+      font-weight: 750;
+    }
     button {
       border: 0;
       border-radius: 100px;
@@ -222,6 +252,59 @@
     .howto strong { color: var(--yellow); }
     .howto ol { margin: 8px 0 0; padding-left: 22px; color: var(--muted); line-height: 1.7; }
     .tip { margin: 9px 0 0; font-size: 12px; color: #a99fcd; }
+    .leaderboard {
+      max-width: 760px;
+      margin: 18px auto 0;
+      padding: 18px;
+      border: 1px solid #ffffff21;
+      border-radius: 20px;
+      background: var(--card);
+    }
+    .leaderboard-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+    .leaderboard-title strong { color: var(--yellow); font-size: 19px; }
+    .leaderboard-title p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+    .leaderboard-list {
+      display: grid;
+      gap: 7px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .leaderboard-list li {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      min-height: 46px;
+      padding: 8px 12px;
+      border: 1px solid #ffffff17;
+      border-radius: 14px;
+      background: #0b0626a8;
+    }
+    .leaderboard-list li:nth-child(1) { border-color: #ffe66d70; background: #382b176e; }
+    .leaderboard-list li:nth-child(2) { border-color: #d9dcf04d; }
+    .leaderboard-list li:nth-child(3) { border-color: #df9b654d; }
+    .rank { color: var(--muted); font-weight: 900; text-align: center; }
+    .player-name { overflow: hidden; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+    .leaderboard-score { color: var(--yellow); font-size: 20px; font-weight: 950; }
+    .leaderboard-empty { margin: 8px 0 2px; color: var(--muted); text-align: center; }
+    .clear-button {
+      flex: 0 0 auto;
+      padding: 8px 12px;
+      border: 1px solid #ff77b63d;
+      color: #ffb0d5;
+      background: #4f17369c;
+      box-shadow: none;
+      font-size: 12px;
+    }
+    .clear-button:hover { translate: 0 -1px; }
+    .clear-button:active { translate: 0 1px; box-shadow: none; }
     .stage:fullscreen,
     .stage:-webkit-full-screen {
       width: 100vw;
@@ -247,12 +330,14 @@
       .mobile-controls { top: 12px; }
       .control-button { padding: 7px 9px; font-size: 11px; }
       .feedback { bottom: 12px; padding: 9px 12px; }
-      .howto { margin-top: 12px; }
+      .howto, .leaderboard { margin-top: 12px; }
+      .leaderboard { padding: 14px; }
+      .leaderboard-header { align-items: flex-start; }
     }
     @media (max-height: 520px) and (orientation: landscape) {
       body { display: block; }
       .game { width: 100%; padding: 6px; }
-      header, .howto { display: none; }
+      header, .howto, .leaderboard { display: none; }
       .stage {
         width: min(100%, 850px);
         height: calc(100dvh - 12px);
@@ -291,19 +376,37 @@
       <div id="feedback" class="feedback">กดเริ่มเกม แล้วหันฝ่ามือขึ้นเข้ากล้อง</div>
       <div id="startScreen" class="start-screen">
         <p class="big">67</p>
-        <p>ยกมือขึ้นเข้ากล้อง แล้วขยับขึ้น–ลงเหมือนท่ามีม 67<br>เปลี่ยนทิศครบหนึ่งจังหวะ = 1 คะแนน</p>
+        <p id="startMessage">ยกมือขึ้นเข้ากล้อง แล้วขยับขึ้น–ลงเหมือนท่ามีม 67<br>เปลี่ยนทิศครบหนึ่งจังหวะ = 1 คะแนน</p>
+        <div class="player-entry">
+          <label for="playerName">ชื่อผู้เล่น</label>
+          <input id="playerName" type="text" maxlength="20" autocomplete="off" placeholder="กรอกชื่อก่อนเริ่ม" />
+          <p id="nameError" class="name-error" aria-live="polite"></p>
+        </div>
         <button id="startButton" type="button">เริ่มใช้กล้องและเล่น</button>
       </div>
+    </section>
+
+    <section class="leaderboard" aria-labelledby="leaderboardTitle">
+      <div class="leaderboard-header">
+        <div class="leaderboard-title">
+          <strong id="leaderboardTitle">🏆 10 อันดับสูงสุด</strong>
+          <p>เก็บคะแนนไว้ในโทรศัพท์หรือเบราว์เซอร์เครื่องนี้</p>
+        </div>
+        <button id="clearLeaderboard" class="clear-button" type="button">ล้างอันดับ</button>
+      </div>
+      <ol id="leaderboardList" class="leaderboard-list" aria-live="polite"></ol>
+      <p id="leaderboardEmpty" class="leaderboard-empty">ยังไม่มีคะแนน มาเป็นคนแรกกัน!</p>
     </section>
 
     <section class="howto">
       <strong>วิธีเล่น</strong>
       <ol>
-        <li>กดปุ่มเริ่ม และกด <b>อนุญาต</b> ให้เว็บไซต์ใช้กล้อง</li>
+        <li>กรอกชื่อผู้เล่น แล้วกดปุ่มเริ่ม</li>
+        <li>กด <b>อนุญาต</b> ให้เว็บไซต์ใช้กล้อง</li>
         <li>แบมือสองข้าง แล้วโยกให้มือข้างหนึ่งสูง อีกข้างต่ำ สลับกันตามท่า 67</li>
-        <li>ทำคะแนนให้มากที่สุดภายใน 30 วินาที</li>
+        <li>ทำคะแนนให้มากที่สุดภายใน 30 วินาที ระบบจะบันทึกคะแนนให้อัตโนมัติ</li>
       </ol>
-      <p class="tip">ให้กล้องเห็นสองมือครบจะนับได้แม่นที่สุด หากหลุดเหลือมือเดียว เกมยังใช้โหมดสำรองได้</p>
+      <p class="tip">ชื่อเดิมเล่นซ้ำได้ โดยระบบจะเก็บเฉพาะคะแนนที่ดีที่สุด หากล้างข้อมูลเบราว์เซอร์ ตารางอันดับจะหาย</p>
     </section>
   </main>
 
@@ -322,6 +425,8 @@
     const PAIR_REVERSAL_DISTANCE = 0.006;
     const PAIR_TRACK_HOLD = 240;
     const PAIR_LOSS_GRACE = 320;
+    const LEADERBOARD_KEY = "67-motion-leaderboard-v1";
+    const LAST_PLAYER_KEY = "67-motion-last-player";
 
     const video = document.querySelector("#webcam");
     const stage = document.querySelector(".stage");
@@ -333,16 +438,24 @@
     const feedbackEl = document.querySelector("#feedback");
     const startButton = document.querySelector("#startButton");
     const startScreen = document.querySelector("#startScreen");
+    const startMessage = document.querySelector("#startMessage");
+    const playerNameInput = document.querySelector("#playerName");
+    const nameError = document.querySelector("#nameError");
     const scorePopLayer = document.querySelector("#scorePopLayer");
     const cameraButton = document.querySelector("#cameraButton");
     const fullscreenButton = document.querySelector("#fullscreenButton");
+    const leaderboardList = document.querySelector("#leaderboardList");
+    const leaderboardEmpty = document.querySelector("#leaderboardEmpty");
+    const clearLeaderboardButton = document.querySelector("#clearLeaderboard");
 
     let handLandmarker;
     let running = false;
     let gameEndsAt = 0;
     let lastVideoTime = -1;
     let score = 0;
-    let bestScore = Number(localStorage.getItem("67-motion-best") || 0);
+    let leaderboard = loadLeaderboard();
+    let bestScore = leaderboard[0]?.score || 0;
+    let currentPlayerName = "";
     let trackedPalm = null;
     let smoothedPalm = null;
     let motionStartPalm = null;
@@ -368,6 +481,88 @@
     let keepScreenAwake = false;
 
     bestEl.textContent = bestScore;
+    playerNameInput.value = loadLastPlayer();
+    renderLeaderboard();
+
+    function normalizePlayerName(value) {
+      return value.trim().replace(/\s+/g, " ").slice(0, 20);
+    }
+
+    function loadLastPlayer() {
+      try { return localStorage.getItem(LAST_PLAYER_KEY) || ""; }
+      catch (_) { return ""; }
+    }
+
+    function loadLeaderboard() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || "[]");
+        if (!Array.isArray(saved)) return [];
+        return saved
+          .filter((entry) => entry && typeof entry.name === "string" && Number.isFinite(Number(entry.score)))
+          .map((entry) => ({
+            name: normalizePlayerName(entry.name),
+            score: Math.max(0, Math.floor(Number(entry.score))),
+            playedAt: Number(entry.playedAt) || 0
+          }))
+          .filter((entry) => entry.name)
+          .sort((a, b) => b.score - a.score || a.playedAt - b.playedAt);
+      } catch (_) {
+        return [];
+      }
+    }
+
+    function saveLeaderboard() {
+      try { localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(leaderboard)); }
+      catch (error) { console.warn("Leaderboard storage unavailable", error); }
+    }
+
+    function renderLeaderboard() {
+      leaderboardList.replaceChildren();
+      const topTen = leaderboard.slice(0, 10);
+      leaderboardEmpty.hidden = topTen.length > 0;
+      topTen.forEach((entry, index) => {
+        const item = document.createElement("li");
+        const rank = document.createElement("span");
+        const name = document.createElement("span");
+        const points = document.createElement("strong");
+        rank.className = "rank";
+        name.className = "player-name";
+        points.className = "leaderboard-score";
+        rank.textContent = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}`;
+        name.textContent = entry.name;
+        points.textContent = entry.score;
+        item.append(rank, name, points);
+        leaderboardList.appendChild(item);
+      });
+    }
+
+    function recordScore(name, newScore) {
+      if (newScore <= 0) return { improved: false, rank: null, personalBest: 0 };
+      const normalizedName = normalizePlayerName(name);
+      const identity = normalizedName.toLocaleLowerCase("th");
+      const existing = leaderboard.find((entry) => entry.name.toLocaleLowerCase("th") === identity);
+      let improved = false;
+
+      if (!existing) {
+        leaderboard.push({ name: normalizedName, score: newScore, playedAt: Date.now() });
+        improved = true;
+      } else if (newScore > existing.score) {
+        existing.name = normalizedName;
+        existing.score = newScore;
+        existing.playedAt = Date.now();
+        improved = true;
+      }
+
+      leaderboard.sort((a, b) => b.score - a.score || a.playedAt - b.playedAt);
+      saveLeaderboard();
+      renderLeaderboard();
+      const playerIndex = leaderboard.findIndex((entry) => entry.name.toLocaleLowerCase("th") === identity);
+      return {
+        improved,
+        rank: playerIndex >= 0 ? playerIndex + 1 : null,
+        personalBest: playerIndex >= 0 ? leaderboard[playerIndex].score : newScore
+      };
+    }
 
     function setFeedback(text, isGood = false) {
       feedbackEl.textContent = text;
@@ -770,16 +965,21 @@
     function endGame() {
       running = false;
       cancelAnimationFrame(animationId);
-      if (score > bestScore) {
-        bestScore = score;
-        localStorage.setItem("67-motion-best", bestScore);
-        bestEl.textContent = bestScore;
-      }
+      const result = recordScore(currentPlayerName, score);
+      bestScore = leaderboard[0]?.score || 0;
+      bestEl.textContent = bestScore;
+      try { localStorage.setItem("67-motion-best", bestScore); } catch (_) { /* ใช้ตารางต่อได้แม้พื้นที่เก็บข้อมูลถูกปิด */ }
       startScreen.classList.remove("hidden");
       startScreen.querySelector(".big").textContent = `ได้ ${score}!`;
-      startScreen.querySelector("p:not(.big)").innerHTML = score > 0
-        ? `สุดยอด! คะแนนของเธอคือ <b>${score}</b><br>ลองใหม่เพื่อทำลายสถิติกัน` 
-        : "ลองยกมือให้เห็นครบสองข้าง แล้วโยกขึ้น–ลงสลับกันให้ชัดขึ้น";
+      if (score <= 0) {
+        startMessage.textContent = `${currentPlayerName} ยังไม่ได้คะแนน ลองยกมือให้เห็นครบสองข้างแล้วเล่นอีกครั้ง`;
+      } else if (result.improved) {
+        const rankText = result.rank <= 10 ? ` • อันดับที่ ${result.rank}` : "";
+        startMessage.textContent = `บันทึกแล้ว: ${currentPlayerName} ได้ ${score} คะแนน${rankText}`;
+      } else {
+        const rankText = result.rank <= 10 ? ` • อันดับที่ ${result.rank}` : "";
+        startMessage.textContent = `รอบนี้ได้ ${score} • สถิติสูงสุดของ ${currentPlayerName} คือ ${result.personalBest}${rankText}`;
+      }
       startButton.textContent = "เล่นอีกครั้ง";
       startButton.disabled = false;
       setFeedback("เกมจบแล้ว");
@@ -802,6 +1002,18 @@
     }
 
     async function startGame() {
+      if (startButton.disabled || running) return;
+      const enteredName = normalizePlayerName(playerNameInput.value);
+      if (!enteredName) {
+        nameError.textContent = "กรุณากรอกชื่อผู้เล่นก่อนเริ่ม";
+        playerNameInput.focus();
+        return;
+      }
+      currentPlayerName = enteredName;
+      playerNameInput.value = enteredName;
+      nameError.textContent = "";
+      try { localStorage.setItem(LAST_PLAYER_KEY, enteredName); } catch (_) { /* เล่นต่อได้แม้บันทึกชื่อล่าสุดไม่ได้ */ }
+
       try {
         startButton.disabled = true;
         startButton.textContent = "กำลังเปิดกล้อง...";
@@ -832,6 +1044,24 @@
     }
 
     startButton.addEventListener("click", startGame);
+    playerNameInput.addEventListener("input", () => { nameError.textContent = ""; });
+    playerNameInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !running && !startButton.disabled) startGame();
+    });
+    clearLeaderboardButton.addEventListener("click", () => {
+      if (!leaderboard.length) {
+        setFeedback("ยังไม่มีคะแนนให้ล้าง");
+        return;
+      }
+      if (!window.confirm("ต้องการล้างชื่อและคะแนนทั้งหมดในเครื่องนี้ใช่ไหม?")) return;
+      leaderboard = [];
+      bestScore = 0;
+      saveLeaderboard();
+      try { localStorage.removeItem("67-motion-best"); } catch (_) { /* ไม่มีผลต่อการเล่น */ }
+      bestEl.textContent = "0";
+      renderLeaderboard();
+      setFeedback("ล้างตารางอันดับแล้ว");
+    });
     cameraButton.addEventListener("click", switchCamera);
     fullscreenButton.addEventListener("click", toggleFullscreen);
     document.addEventListener("fullscreenchange", updateFullscreenButton);
