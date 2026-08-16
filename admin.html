@@ -128,6 +128,57 @@
       color: #ffd4e5;
       background: linear-gradient(135deg, #681b41, #44132f);
     }
+    .session-manager {
+      margin: 20px 0;
+      padding: 18px;
+      border: 1px solid #ffe66d38;
+      border-radius: 20px;
+      background: #ffe66d0a;
+    }
+    .session-manager h3 { margin: 0; color: var(--yellow); font-size: 19px; }
+    .session-manager > p { margin: 6px 0 15px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .session-result {
+      display: grid;
+      justify-items: center;
+      gap: 12px;
+      margin-top: 15px;
+      padding-top: 17px;
+      border-top: 1px solid #ffffff14;
+    }
+    #qrHolder {
+      display: grid;
+      place-items: center;
+      width: min(100%, 270px);
+      min-height: 270px;
+      padding: 14px;
+      border-radius: 20px;
+      background: #fff;
+    }
+    #qrHolder img { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+    .session-countdown { color: var(--green); font-size: 20px; font-weight: 1000; }
+    .link-field {
+      width: 100%;
+      padding: 11px 13px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      outline: none;
+      color: #fff;
+      background: #0d0725;
+      font: inherit;
+      font-size: 12px;
+    }
+    .session-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+      width: 100%;
+    }
+    .button-link {
+      display: grid;
+      place-items: center;
+      text-align: center;
+      text-decoration: none;
+    }
     .note {
       margin: 17px 0 0;
       color: #978daf;
@@ -169,6 +220,23 @@
         </div>
       </div>
 
+      <section id="sessionManager" class="session-manager" hidden>
+        <h3>🔗 ลิงก์และ QR อายุ 1 ชั่วโมง</h3>
+        <p>สร้างรอบใหม่แล้วนำ QR ไปให้ผู้เล่นสแกน เมื่อครบเวลาเกมจะปฏิเสธลิงก์และหยุดรับคะแนนอัตโนมัติ</p>
+        <button id="generateSessionButton" class="button" type="button">สร้างลิงก์และ QR รอบใหม่</button>
+        <div id="sessionResult" class="session-result" hidden>
+          <div id="qrHolder" aria-label="QR Code สำหรับเข้าเกม"></div>
+          <strong id="sessionCountdown" class="session-countdown">เหลือเวลา 60:00</strong>
+          <input id="sessionLink" class="link-field" type="text" readonly aria-label="ลิงก์เข้าเกม" />
+          <div class="session-actions">
+            <button id="copyLinkButton" class="button" type="button">คัดลอกลิงก์</button>
+            <button id="downloadQrButton" class="button" type="button">ดาวน์โหลด QR</button>
+            <a id="openGameLink" class="button button-link" href="#" target="_blank" rel="noopener">ทดสอบลิงก์</a>
+            <button id="revokeSessionButton" class="button danger" type="button">ยกเลิกลิงก์ทันที</button>
+          </div>
+        </div>
+      </section>
+
       <div class="actions">
         <button id="authButton" class="button" type="button">เข้าสู่ระบบด้วย Google</button>
         <button id="clearButton" class="button danger" type="button" hidden>ล้างคะแนนทั้งหมด</button>
@@ -177,12 +245,18 @@
     </section>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
     import {
       collection,
+      doc,
       getDocs,
       getFirestore,
+      serverTimestamp,
+      setDoc,
+      Timestamp,
+      updateDoc,
       writeBatch
     } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
     import {
@@ -214,8 +288,56 @@
     const scoreCount = document.querySelector("#scoreCount");
     const authButton = document.querySelector("#authButton");
     const clearButton = document.querySelector("#clearButton");
+    const sessionManager = document.querySelector("#sessionManager");
+    const generateSessionButton = document.querySelector("#generateSessionButton");
+    const sessionResult = document.querySelector("#sessionResult");
+    const qrHolder = document.querySelector("#qrHolder");
+    const sessionCountdown = document.querySelector("#sessionCountdown");
+    const sessionLink = document.querySelector("#sessionLink");
+    const copyLinkButton = document.querySelector("#copyLinkButton");
+    const downloadQrButton = document.querySelector("#downloadQrButton");
+    const openGameLink = document.querySelector("#openGameLink");
+    const revokeSessionButton = document.querySelector("#revokeSessionButton");
 
     let isAdmin = false;
+    let currentSessionId = "";
+    let currentSessionExpiresAt = 0;
+    let countdownInterval;
+
+    function makeSessionId() {
+      const bytes = new Uint8Array(16);
+      crypto.getRandomValues(bytes);
+      return [...bytes].map((value) => value.toString(16).padStart(2, "0")).join("");
+    }
+
+    function renderQrCode(link) {
+      const code = window.qrcode(0, "M");
+      code.addData(link);
+      code.make();
+      qrHolder.innerHTML = code.createImgTag(7, 12);
+      const image = qrHolder.querySelector("img");
+      if (image) image.alt = "QR Code สำหรับเข้าเกม 67";
+    }
+
+    function startCountdown() {
+      clearInterval(countdownInterval);
+      const update = () => {
+        const remaining = Math.max(0, currentSessionExpiresAt - Date.now());
+        const totalSeconds = Math.ceil(remaining / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = String(totalSeconds % 60).padStart(2, "0");
+        sessionCountdown.textContent = remaining > 0 ? `เหลือเวลา ${minutes}:${seconds}` : "ลิงก์หมดอายุแล้ว";
+        if (remaining <= 0) {
+          clearInterval(countdownInterval);
+          copyLinkButton.disabled = true;
+          downloadQrButton.disabled = true;
+          revokeSessionButton.disabled = true;
+          openGameLink.hidden = true;
+        }
+      };
+      update();
+      countdownInterval = setInterval(update, 1000);
+    }
 
     async function refreshScoreCount() {
       scoreCount.textContent = "…";
@@ -233,11 +355,13 @@
       accountBox.hidden = !user;
       accountName.textContent = user?.displayName || "บัญชี Google";
       clearButton.hidden = !isAdmin;
+      sessionManager.hidden = !isAdmin;
 
       if (!user) {
         statusEl.textContent = "กรุณาเข้าสู่ระบบด้วยบัญชีผู้ดูแล";
         authButton.textContent = "เข้าสู่ระบบด้วย Google";
         scoreCount.textContent = "—";
+        sessionResult.hidden = true;
       } else if (isAdmin) {
         statusEl.textContent = "ยืนยันบัญชีผู้ดูแลสำเร็จ คุณสามารถจัดการคะแนนได้";
         authButton.textContent = "ออกจากระบบ";
@@ -246,6 +370,79 @@
         statusEl.textContent = "บัญชีนี้ไม่มีสิทธิ์จัดการคะแนน กรุณาออกแล้วใช้บัญชีแอดมิน";
         authButton.textContent = "ออกจากบัญชีนี้";
         scoreCount.textContent = "—";
+        sessionResult.hidden = true;
+      }
+    });
+
+    generateSessionButton.addEventListener("click", async () => {
+      if (!isAdmin) return;
+      generateSessionButton.disabled = true;
+      generateSessionButton.textContent = "กำลังสร้างรอบ…";
+      try {
+        currentSessionId = makeSessionId();
+        currentSessionExpiresAt = Date.now() + 60 * 60 * 1000;
+        await setDoc(doc(db, "sessions", currentSessionId), {
+          active: true,
+          createdAt: serverTimestamp(),
+          expiresAt: Timestamp.fromMillis(currentSessionExpiresAt)
+        });
+
+        const gameUrl = new URL("index.html", window.location.href);
+        gameUrl.searchParams.set("s", currentSessionId);
+        sessionLink.value = gameUrl.href;
+        openGameLink.href = gameUrl.href;
+        openGameLink.hidden = false;
+        copyLinkButton.disabled = false;
+        downloadQrButton.disabled = false;
+        revokeSessionButton.disabled = false;
+        renderQrCode(gameUrl.href);
+        sessionResult.hidden = false;
+        startCountdown();
+        statusEl.textContent = "สร้างรอบใหม่แล้ว QR นี้ใช้งานได้ 1 ชั่วโมง";
+      } catch (error) {
+        console.error("Create session failed", error);
+        statusEl.textContent = "สร้างรอบไม่สำเร็จ โปรดตรวจ Firestore Rules";
+      } finally {
+        generateSessionButton.disabled = false;
+        generateSessionButton.textContent = "สร้างลิงก์และ QR รอบใหม่";
+      }
+    });
+
+    copyLinkButton.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(sessionLink.value);
+      } catch (_) {
+        sessionLink.select();
+        document.execCommand("copy");
+      }
+      copyLinkButton.textContent = "คัดลอกแล้ว ✓";
+      setTimeout(() => { copyLinkButton.textContent = "คัดลอกลิงก์"; }, 1500);
+    });
+
+    downloadQrButton.addEventListener("click", () => {
+      const image = qrHolder.querySelector("img");
+      if (!image) return;
+      const link = document.createElement("a");
+      link.href = image.src;
+      link.download = `game67-qr-${currentSessionId.slice(0, 8)}.gif`;
+      link.click();
+    });
+
+    revokeSessionButton.addEventListener("click", async () => {
+      if (!isAdmin || !currentSessionId || !window.confirm("ต้องการยกเลิกลิงก์รอบนี้ทันทีใช่หรือไม่?")) return;
+      revokeSessionButton.disabled = true;
+      try {
+        await updateDoc(doc(db, "sessions", currentSessionId), { active: false });
+        clearInterval(countdownInterval);
+        sessionCountdown.textContent = "ยกเลิกลิงก์แล้ว";
+        copyLinkButton.disabled = true;
+        downloadQrButton.disabled = true;
+        openGameLink.hidden = true;
+        statusEl.textContent = "ยกเลิกลิงก์รอบนี้เรียบร้อยแล้ว";
+      } catch (error) {
+        console.error("Revoke session failed", error);
+        statusEl.textContent = "ยกเลิกลิงก์ไม่สำเร็จ โปรดลองใหม่";
+        revokeSessionButton.disabled = false;
       }
     });
 

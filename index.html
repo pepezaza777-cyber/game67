@@ -195,6 +195,31 @@
     .start-screen.hidden { display: none; }
     .start-screen .big { margin: 0; font-size: clamp(48px, 12vw, 96px); font-weight: 1000; line-height: .8; color: var(--yellow); text-shadow: 0 4px 0 #ff4fa1; }
     .start-screen p { max-width: 510px; margin: 0; color: #e4dfff; line-height: 1.55; }
+    .access-screen {
+      position: absolute;
+      z-index: 9;
+      inset: 0;
+      display: grid;
+      align-content: center;
+      justify-items: center;
+      gap: 12px;
+      padding: 28px;
+      text-align: center;
+      background: linear-gradient(140deg, #130833f7, #28115ef7);
+    }
+    .access-screen.hidden { display: none; }
+    .access-icon {
+      display: grid;
+      place-items: center;
+      width: 72px;
+      height: 72px;
+      border: 1px solid #ffffff2b;
+      border-radius: 23px;
+      background: #ffffff0c;
+      font-size: 34px;
+    }
+    .access-screen h2 { margin: 5px 0 0; color: var(--yellow); font-size: clamp(24px, 5vw, 38px); }
+    .access-screen p { max-width: 470px; margin: 0; color: #d8d1ef; line-height: 1.6; }
     .player-entry {
       display: grid;
       gap: 6px;
@@ -342,6 +367,11 @@
         <button id="fullscreenButton" class="control-button" type="button">⛶ เต็มจอ</button>
       </div>
       <div id="feedback" class="feedback">กดเริ่มเกม แล้วหันฝ่ามือขึ้นเข้ากล้อง</div>
+      <div id="accessScreen" class="access-screen">
+        <div id="accessIcon" class="access-icon">⏳</div>
+        <h2 id="accessTitle">กำลังตรวจสอบลิงก์…</h2>
+        <p id="accessMessage">กรุณารอสักครู่ ระบบกำลังตรวจสอบอายุของรอบการแข่งขัน</p>
+      </div>
       <div id="startScreen" class="start-screen">
         <p class="big">67</p>
         <p id="startMessage">ยกมือขึ้นเข้ากล้อง แล้วขยับขึ้น–ลงเหมือนท่ามีม 67<br>เปลี่ยนทิศครบหนึ่งจังหวะ = 1 คะแนน</p>
@@ -375,7 +405,9 @@
     import {
       addDoc,
       collection,
+      doc,
       getFirestore,
+      getDocFromServer,
       limit,
       onSnapshot,
       orderBy,
@@ -423,8 +455,15 @@
     const scorePopLayer = document.querySelector("#scorePopLayer");
     const cameraButton = document.querySelector("#cameraButton");
     const fullscreenButton = document.querySelector("#fullscreenButton");
+    const accessScreen = document.querySelector("#accessScreen");
+    const accessIcon = document.querySelector("#accessIcon");
+    const accessTitle = document.querySelector("#accessTitle");
+    const accessMessage = document.querySelector("#accessMessage");
 
+    const sessionId = new URL(window.location.href).searchParams.get("s") || "";
     let handLandmarker;
+    let sessionExpiresAt = 0;
+    let accessReady = false;
     let running = false;
     let gameEndsAt = 0;
     let lastVideoTime = -1;
@@ -461,6 +500,39 @@
       return value.trim().replace(/\s+/g, " ").slice(0, 20);
     }
 
+    function showAccessError(title, message) {
+      accessReady = false;
+      accessIcon.textContent = "🔒";
+      accessTitle.textContent = title;
+      accessMessage.textContent = message;
+      accessScreen.classList.remove("hidden");
+    }
+
+    async function validateSession() {
+      if (!/^[a-f0-9]{32}$/.test(sessionId)) {
+        showAccessError("ต้องสแกน QR เพื่อเข้าเล่น", "ลิงก์ตรงจะไม่เปิดเกม กรุณาสแกน QR ของรอบการแข่งขันจากผู้จัดงาน");
+        return false;
+      }
+
+      try {
+        const snapshot = await getDocFromServer(doc(db, "sessions", sessionId));
+        const data = snapshot.data();
+        const expiresAt = data?.expiresAt?.toMillis?.() || 0;
+        if (!snapshot.exists() || data?.active !== true || expiresAt <= Date.now()) {
+          showAccessError("ลิงก์หมดอายุแล้ว", "QR นี้ใช้งานไม่ได้แล้ว กรุณาขอ QR รอบใหม่จากผู้จัดงาน");
+          return false;
+        }
+        sessionExpiresAt = expiresAt;
+        accessReady = true;
+        accessScreen.classList.add("hidden");
+        return true;
+      } catch (error) {
+        console.error("Session validation failed", error);
+        showAccessError("ลิงก์หมดอายุหรือไม่ถูกต้อง", "กรุณาขอ QR รอบใหม่จากผู้จัดงาน แล้วสแกนอีกครั้ง");
+        return false;
+      }
+    }
+
     function watchOnlineBestScore() {
       const bestQuery = query(collection(db, "scores"), orderBy("score", "desc"), limit(1));
       onSnapshot(bestQuery, (snapshot) => {
@@ -475,6 +547,7 @@
       await addDoc(collection(db, "scores"), {
         name,
         score: finalScore,
+        sessionId,
         playedAt: serverTimestamp()
       });
     }
@@ -895,8 +968,13 @@
         setFeedback("บันทึกคะแนนออนไลน์แล้ว", true);
       } catch (error) {
         console.error("Score save failed", error);
-        startMessage.textContent = `${currentPlayerName} ได้ ${score} คะแนน แต่บันทึกออนไลน์ไม่สำเร็จ โปรดลองอีกครั้ง`;
-        setFeedback("บันทึกคะแนนไม่สำเร็จ โปรดตรวจอินเทอร์เน็ต");
+        if (error?.code === "permission-denied") {
+          startMessage.textContent = `${currentPlayerName} ได้ ${score} คะแนน แต่ลิงก์หมดอายุก่อนบันทึก`;
+          setFeedback("ลิงก์หมดอายุ กรุณาสแกน QR รอบใหม่");
+        } else {
+          startMessage.textContent = `${currentPlayerName} ได้ ${score} คะแนน แต่บันทึกออนไลน์ไม่สำเร็จ โปรดลองอีกครั้ง`;
+          setFeedback("บันทึกคะแนนไม่สำเร็จ โปรดตรวจอินเทอร์เน็ต");
+        }
       } finally {
         startButton.textContent = "เล่นอีกครั้ง";
         startButton.disabled = false;
@@ -921,6 +999,11 @@
 
     async function startGame() {
       if (startButton.disabled || running) return;
+      if (!accessReady || Date.now() + (GAME_SECONDS + 5) * 1000 >= sessionExpiresAt) {
+        showAccessError("ลิงก์หมดอายุแล้ว", "กรุณาขอ QR รอบใหม่จากผู้จัดงานก่อนเริ่มเกม");
+        return;
+      }
+      if (!await validateSession()) return;
       const enteredName = normalizePlayerName(playerNameInput.value);
       if (!enteredName) {
         nameError.textContent = "กรุณากรอกชื่อผู้เล่นก่อนเริ่ม";
@@ -977,6 +1060,7 @@
       if (wakeLock) wakeLock.release().catch(() => {});
       stopCamera();
     });
+    validateSession();
     watchOnlineBestScore();
     updateCameraButton();
     updateFullscreenButton();
