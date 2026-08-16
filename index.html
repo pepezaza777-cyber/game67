@@ -1,0 +1,851 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#170b38" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>67 Motion Game</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f9f7ff;
+      --muted: #bdb5dc;
+      --pink: #ff4fa1;
+      --yellow: #ffe66d;
+      --violet: #6c49ff;
+      --card: rgba(20, 13, 51, .76);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      overflow-x: hidden;
+      color: var(--ink);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 12% 12%, #6028ad 0 8%, transparent 29%),
+        radial-gradient(circle at 90% 83%, #e5489c 0 7%, transparent 29%),
+        linear-gradient(145deg, #100729 0%, #241151 54%, #110626 100%);
+    }
+    .game {
+      width: min(100%, 900px);
+      padding: clamp(16px, 3vw, 32px);
+    }
+    header {
+      display: flex;
+      gap: 14px;
+      justify-content: space-between;
+      align-items: center;
+      margin: 0 auto 16px;
+      max-width: 760px;
+    }
+    .title { display: flex; align-items: center; gap: 12px; }
+    .logo {
+      display: grid;
+      place-items: center;
+      width: 50px;
+      height: 50px;
+      border-radius: 16px;
+      font-size: 20px;
+      font-weight: 900;
+      color: #201037;
+      background: var(--yellow);
+      transform: rotate(-7deg);
+      box-shadow: 0 8px 28px #0b031c66;
+    }
+    h1 { margin: 0; font-size: clamp(22px, 4vw, 32px); line-height: 1.05; }
+    .subtitle { margin: 3px 0 0; color: var(--muted); font-size: 13px; }
+    .best { text-align: right; color: var(--muted); font-weight: 650; font-size: 13px; }
+    .best b { color: var(--yellow); font-size: 24px; display: block; line-height: 1; }
+    .stage {
+      position: relative;
+      isolation: isolate;
+      overflow: hidden;
+      width: min(100%, 760px);
+      aspect-ratio: 16 / 10;
+      margin: auto;
+      border: 2px solid #ffffff24;
+      border-radius: 26px;
+      background: #0b0820;
+      box-shadow: 0 25px 70px #06000e88;
+    }
+    video, #landmarks {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+    .stage.rear-camera video,
+    .stage.rear-camera #landmarks { transform: none; }
+    video { opacity: .9; }
+    #landmarks { z-index: 1; pointer-events: none; }
+    .shade {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      background: linear-gradient(180deg, #04011899 0%, transparent 30%, transparent 65%, #040118b8 100%);
+    }
+    .hud {
+      position: absolute;
+      z-index: 3;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      pointer-events: none;
+    }
+    .score-box, .timer {
+      padding: 10px 14px;
+      border: 1px solid #ffffff38;
+      border-radius: 16px;
+      background: #160d38b8;
+      backdrop-filter: blur(8px);
+    }
+    .score-label { display: block; color: #cbc2ef; font-size: 11px; font-weight: 800; letter-spacing: .08em; }
+    #score { display: block; color: var(--yellow); font-size: clamp(35px, 7vw, 56px); font-weight: 900; line-height: .9; }
+    .timer { font-size: 26px; font-weight: 850; min-width: 67px; text-align: center; }
+    .mobile-controls {
+      position: absolute;
+      z-index: 7;
+      top: 16px;
+      left: 50%;
+      translate: -50% 0;
+      display: flex;
+      gap: 7px;
+    }
+    .control-button {
+      padding: 8px 12px;
+      border: 1px solid #ffffff38;
+      border-radius: 999px;
+      color: #f7f3ff;
+      background: #160d38d8;
+      box-shadow: 0 5px 16px #05001455;
+      font-size: 12px;
+      font-weight: 800;
+      backdrop-filter: blur(8px);
+    }
+    .control-button:hover { translate: 0 -1px; }
+    .control-button:active { translate: 0 2px; box-shadow: 0 3px 10px #05001455; }
+    .control-button:disabled { cursor: wait; opacity: .45; }
+    .feedback {
+      position: absolute;
+      z-index: 3;
+      bottom: 24px;
+      left: 50%;
+      width: min(86%, 500px);
+      translate: -50% 0;
+      padding: 12px 16px;
+      border-radius: 16px;
+      text-align: center;
+      color: #fff;
+      font-size: clamp(13px, 2.5vw, 17px);
+      font-weight: 750;
+      background: #160d38bb;
+      border: 1px solid #ffffff2b;
+      backdrop-filter: blur(8px);
+    }
+    .feedback.good { color: #261236; background: #ffe66de8; border-color: #fff3a6; animation: pop .35s ease-out; }
+    @keyframes pop { 50% { scale: 1.07; } }
+    .score-pop-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .score-pop {
+      position: absolute;
+      translate: -50% -50%;
+      color: var(--yellow);
+      font-size: clamp(44px, 9vw, 82px);
+      font-weight: 1000;
+      line-height: 1;
+      -webkit-text-stroke: 2px #56209d;
+      text-shadow: 0 5px 0 var(--pink), 0 10px 24px #100424aa;
+      animation: scoreBurst .58s cubic-bezier(.16, .85, .25, 1) forwards;
+    }
+    @keyframes scoreBurst {
+      0% { opacity: 0; scale: .35; rotate: -14deg; }
+      28% { opacity: 1; scale: 1.35; rotate: 7deg; }
+      70% { opacity: 1; scale: 1; }
+      100% { opacity: 0; scale: .9; translate: -50% -145%; }
+    }
+    .start-screen {
+      position: absolute;
+      z-index: 6;
+      inset: 0;
+      display: grid;
+      align-content: center;
+      justify-items: center;
+      gap: 16px;
+      padding: 24px;
+      text-align: center;
+      background: linear-gradient(140deg, #130833ed, #28115eed);
+    }
+    .start-screen.hidden { display: none; }
+    .start-screen .big { margin: 0; font-size: clamp(48px, 12vw, 96px); font-weight: 1000; line-height: .8; color: var(--yellow); text-shadow: 0 4px 0 #ff4fa1; }
+    .start-screen p { max-width: 510px; margin: 0; color: #e4dfff; line-height: 1.55; }
+    button {
+      border: 0;
+      border-radius: 100px;
+      padding: 13px 23px;
+      color: #281236;
+      background: var(--yellow);
+      font: inherit;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 8px 0 #d88d28, 0 12px 20px #06001966;
+      transition: translate .15s, box-shadow .15s;
+    }
+    button:hover { translate: 0 -2px; }
+    button:active { translate: 0 5px; box-shadow: 0 3px 0 #d88d28, 0 6px 14px #06001966; }
+    button:disabled { cursor: wait; opacity: .65; }
+    .howto {
+      max-width: 760px;
+      margin: 18px auto 0;
+      padding: 16px 18px;
+      border: 1px solid #ffffff21;
+      border-radius: 20px;
+      color: #e8e3ff;
+      background: var(--card);
+    }
+    .howto strong { color: var(--yellow); }
+    .howto ol { margin: 8px 0 0; padding-left: 22px; color: var(--muted); line-height: 1.7; }
+    .tip { margin: 9px 0 0; font-size: 12px; color: #a99fcd; }
+    .stage:fullscreen,
+    .stage:-webkit-full-screen {
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      max-width: none;
+      aspect-ratio: auto;
+      margin: 0;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+    }
+    .stage:fullscreen .feedback,
+    .stage:-webkit-full-screen .feedback {
+      bottom: calc(16px + env(safe-area-inset-bottom));
+    }
+    @media (max-width: 480px) {
+      header { align-items: flex-start; }
+      .game { padding: 10px; }
+      .stage { aspect-ratio: 3 / 4; border-radius: 19px; }
+      .hud { top: 10px; left: 10px; right: 10px; }
+      .score-box, .timer { padding: 8px 10px; border-radius: 12px; }
+      .mobile-controls { top: 12px; }
+      .control-button { padding: 7px 9px; font-size: 11px; }
+      .feedback { bottom: 12px; padding: 9px 12px; }
+      .howto { margin-top: 12px; }
+    }
+    @media (max-height: 520px) and (orientation: landscape) {
+      body { display: block; }
+      .game { width: 100%; padding: 6px; }
+      header, .howto { display: none; }
+      .stage {
+        width: min(100%, 850px);
+        height: calc(100dvh - 12px);
+        aspect-ratio: auto;
+        border-radius: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="game">
+    <header>
+      <div class="title">
+        <span class="logo">67</span>
+        <div>
+          <h1>67 Motion Game</h1>
+          <p class="subtitle">โหมดแข่งขัน — โยกให้เร็วที่สุด!</p>
+        </div>
+      </div>
+      <div class="best">คะแนนสูงสุด <b id="bestScore">0</b></div>
+    </header>
+
+    <section class="stage" aria-label="พื้นที่เล่นเกมจากกล้อง">
+      <video id="webcam" playsinline muted></video>
+      <canvas id="landmarks"></canvas>
+      <div class="shade"></div>
+      <div id="scorePopLayer" class="score-pop-layer" aria-hidden="true"></div>
+      <div class="hud">
+        <div class="score-box"><span class="score-label">SCORE</span><span id="score">0</span></div>
+        <div class="timer" id="timer">30</div>
+      </div>
+      <div class="mobile-controls" aria-label="ตัวควบคุมกล้องและหน้าจอ">
+        <button id="cameraButton" class="control-button" type="button">📷 กล้องหน้า</button>
+        <button id="fullscreenButton" class="control-button" type="button">⛶ เต็มจอ</button>
+      </div>
+      <div id="feedback" class="feedback">กดเริ่มเกม แล้วหันฝ่ามือขึ้นเข้ากล้อง</div>
+      <div id="startScreen" class="start-screen">
+        <p class="big">67</p>
+        <p>ยกมือขึ้นเข้ากล้อง แล้วขยับขึ้น–ลงเหมือนท่ามีม 67<br>เปลี่ยนทิศครบหนึ่งจังหวะ = 1 คะแนน</p>
+        <button id="startButton" type="button">เริ่มใช้กล้องและเล่น</button>
+      </div>
+    </section>
+
+    <section class="howto">
+      <strong>วิธีเล่น</strong>
+      <ol>
+        <li>กดปุ่มเริ่ม และกด <b>อนุญาต</b> ให้เว็บไซต์ใช้กล้อง</li>
+        <li>แบมือสองข้าง แล้วโยกให้มือข้างหนึ่งสูง อีกข้างต่ำ สลับกันตามท่า 67</li>
+        <li>ทำคะแนนให้มากที่สุดภายใน 30 วินาที</li>
+      </ol>
+      <p class="tip">ให้กล้องเห็นสองมือครบจะนับได้แม่นที่สุด หากหลุดเหลือมือเดียว เกมยังใช้โหมดสำรองได้</p>
+    </section>
+  </main>
+
+  <script type="module">
+    import { FilesetResolver, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest";
+
+    const GAME_SECONDS = 30;
+    // ใช้ระยะและจุดกลับตัวแทนทิศทางรายเฟรม จึงไม่โดนภาพสั่นหลอกง่าย
+    const START_MOVEMENT = 0.014;
+    const SWING_DISTANCE = 0.034;
+    const REVERSAL_DISTANCE = 0.010;
+    const TRACK_RESET_DISTANCE = 0.22;
+    const SCORE_COOLDOWN = 100;
+    const PAIR_START_MOVEMENT = 0.010;
+    const PAIR_SWING_DISTANCE = 0.018;
+    const PAIR_REVERSAL_DISTANCE = 0.006;
+    const PAIR_TRACK_HOLD = 240;
+    const PAIR_LOSS_GRACE = 320;
+
+    const video = document.querySelector("#webcam");
+    const stage = document.querySelector(".stage");
+    const canvas = document.querySelector("#landmarks");
+    const ctx = canvas.getContext("2d");
+    const scoreEl = document.querySelector("#score");
+    const bestEl = document.querySelector("#bestScore");
+    const timerEl = document.querySelector("#timer");
+    const feedbackEl = document.querySelector("#feedback");
+    const startButton = document.querySelector("#startButton");
+    const startScreen = document.querySelector("#startScreen");
+    const scorePopLayer = document.querySelector("#scorePopLayer");
+    const cameraButton = document.querySelector("#cameraButton");
+    const fullscreenButton = document.querySelector("#fullscreenButton");
+
+    let handLandmarker;
+    let running = false;
+    let gameEndsAt = 0;
+    let lastVideoTime = -1;
+    let score = 0;
+    let bestScore = Number(localStorage.getItem("67-motion-best") || 0);
+    let trackedPalm = null;
+    let smoothedPalm = null;
+    let motionStartPalm = null;
+    let motionAxis = null;
+    let motionAnchorValue = null;
+    let motionExtremeValue = null;
+    let motionDirection = 0;
+    let lastHandSeenAt = 0;
+    let pairLeftPalm = null;
+    let pairRightPalm = null;
+    let pairLeftSeenAt = 0;
+    let pairRightSeenAt = 0;
+    let pairSmoothedDifference = null;
+    let pairAnchorDifference = null;
+    let pairExtremeDifference = null;
+    let pairMotionDirection = 0;
+    let pairLastUsableAt = 0;
+    let lastPointAt = 0;
+    let animationId;
+    let currentFacingMode = "user";
+    let cameraBusy = false;
+    let wakeLock = null;
+    let keepScreenAwake = false;
+
+    bestEl.textContent = bestScore;
+
+    function setFeedback(text, isGood = false) {
+      feedbackEl.textContent = text;
+      feedbackEl.classList.toggle("good", isGood);
+    }
+
+    async function setupHandTracking() {
+      setFeedback("กำลังเตรียมตัวจับมือ...");
+      const vision = await FilesetResolver.forVisionTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+      );
+      handLandmarker = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task",
+          delegate: "GPU"
+        },
+        runningMode: "VIDEO",
+        numHands: 2,
+        minHandDetectionConfidence: 0.32,
+        minHandPresenceConfidence: 0.32,
+        minTrackingConfidence: 0.28
+      });
+    }
+
+    function stopCamera() {
+      const stream = video.srcObject;
+      if (stream) stream.getTracks().forEach((track) => track.stop());
+      video.srcObject = null;
+    }
+
+    function updateCameraButton() {
+      cameraButton.textContent = currentFacingMode === "user" ? "📷 กล้องหน้า" : "📷 กล้องหลัง";
+      stage.classList.toggle("rear-camera", currentFacingMode === "environment");
+    }
+
+    async function startCamera(facingMode = currentFacingMode) {
+      stopCamera();
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: facingMode },
+          width: { ideal: 960 },
+          height: { ideal: 540 },
+          frameRate: { ideal: 30, max: 30 }
+        },
+        audio: false
+      });
+      video.srcObject = stream;
+      await video.play();
+      currentFacingMode = facingMode;
+      updateCameraButton();
+      cameraButton.disabled = false;
+    }
+
+    async function switchCamera() {
+      if (cameraBusy) return;
+      cameraBusy = true;
+      cameraButton.disabled = true;
+      const previousFacingMode = currentFacingMode;
+      const nextFacingMode = previousFacingMode === "user" ? "environment" : "user";
+      if (!video.srcObject) {
+        currentFacingMode = nextFacingMode;
+        updateCameraButton();
+        setFeedback(nextFacingMode === "user" ? "เมื่อเริ่มจะใช้กล้องหน้า" : "เมื่อเริ่มจะใช้กล้องหลัง");
+        cameraBusy = false;
+        cameraButton.disabled = false;
+        return;
+      }
+      setFeedback("กำลังสลับกล้อง...");
+      try {
+        await startCamera(nextFacingMode);
+        resetMotionTracking();
+        resetPairTracking();
+        lastVideoTime = -1;
+        setFeedback(nextFacingMode === "user" ? "ใช้กล้องหน้าแล้ว" : "ใช้กล้องหลังแล้ว");
+      } catch (error) {
+        console.error(error);
+        try { await startCamera(previousFacingMode); } catch (restoreError) { console.error(restoreError); }
+        setFeedback("สลับกล้องไม่ได้ ลองอนุญาตกล้องใหม่อีกครั้ง");
+      } finally {
+        cameraBusy = false;
+        cameraButton.disabled = !video.srcObject;
+      }
+    }
+
+    function fullscreenElement() {
+      return document.fullscreenElement || document.webkitFullscreenElement;
+    }
+
+    function updateFullscreenButton() {
+      fullscreenButton.textContent = fullscreenElement() ? "✕ ออกเต็มจอ" : "⛶ เต็มจอ";
+    }
+
+    async function toggleFullscreen() {
+      try {
+        if (!fullscreenElement()) {
+          const request = stage.requestFullscreen || stage.webkitRequestFullscreen;
+          if (!request) throw new Error("Fullscreen API unavailable");
+          await request.call(stage);
+          if (screen.orientation?.lock) {
+            try { await screen.orientation.lock("landscape"); } catch (_) { /* หมุนเองได้หากล็อกไม่ได้ */ }
+          }
+        } else {
+          const exit = document.exitFullscreen || document.webkitExitFullscreen;
+          if (exit) await exit.call(document);
+          if (screen.orientation?.unlock) screen.orientation.unlock();
+        }
+      } catch (error) {
+        console.error(error);
+        setFeedback("หากเต็มจอไม่ได้ ให้หมุนมือถือเป็นแนวนอน");
+      }
+      updateFullscreenButton();
+    }
+
+    async function requestScreenWakeLock() {
+      keepScreenAwake = true;
+      if (!("wakeLock" in navigator) || wakeLock) return;
+      try {
+        wakeLock = await navigator.wakeLock.request("screen");
+        wakeLock.addEventListener("release", () => { wakeLock = null; }, { once: true });
+      } catch (error) {
+        console.warn("Wake Lock unavailable", error);
+      }
+    }
+
+    function palmCenter(landmarks) {
+      // เฉลี่ยกลางฝ่ามือ 5 จุด เพื่อลดการสั่นของจุดใดจุดหนึ่งตอนเด็กโยกเร็ว
+      const palmPoints = [0, 5, 9, 13, 17];
+      return {
+        x: palmPoints.reduce((sum, index) => sum + landmarks[index].x, 0) / palmPoints.length,
+        y: palmPoints.reduce((sum, index) => sum + landmarks[index].y, 0) / palmPoints.length
+      };
+    }
+
+    function drawHands(result) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (const hand of result.landmarks || []) {
+        ctx.strokeStyle = "#ffe66d";
+        ctx.fillStyle = "#ff4fa1";
+        ctx.lineWidth = Math.max(2, canvas.width / 350);
+        const lines = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+        for (const [a, b] of lines) {
+          ctx.beginPath();
+          ctx.moveTo(hand[a].x * canvas.width, hand[a].y * canvas.height);
+          ctx.lineTo(hand[b].x * canvas.width, hand[b].y * canvas.height);
+          ctx.stroke();
+        }
+        for (const point of hand) {
+          ctx.beginPath();
+          ctx.arc(point.x * canvas.width, point.y * canvas.height, Math.max(3, canvas.width / 190), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    function resetMotionTracking() {
+      trackedPalm = null;
+      smoothedPalm = null;
+      motionStartPalm = null;
+      motionAxis = null;
+      motionAnchorValue = null;
+      motionExtremeValue = null;
+      motionDirection = 0;
+    }
+
+    function resetPairTracking() {
+      pairLeftPalm = null;
+      pairRightPalm = null;
+      pairLeftSeenAt = 0;
+      pairRightSeenAt = 0;
+      pairSmoothedDifference = null;
+      pairAnchorDifference = null;
+      pairExtremeDifference = null;
+      pairMotionDirection = 0;
+      pairLastUsableAt = 0;
+    }
+
+    function smoothPalm(previous, current) {
+      if (!previous) return { ...current };
+      return {
+        x: previous.x * 0.18 + current.x * 0.82,
+        y: previous.y * 0.18 + current.y * 0.82
+      };
+    }
+
+    function updatePairTracks(palms, now) {
+      const updateLeft = (palm) => {
+        pairLeftPalm = smoothPalm(pairLeftPalm, palm);
+        pairLeftSeenAt = now;
+      };
+      const updateRight = (palm) => {
+        pairRightPalm = smoothPalm(pairRightPalm, palm);
+        pairRightSeenAt = now;
+      };
+
+      if (palms.length >= 2) {
+        const sorted = [...palms].sort((a, b) => a.x - b.x);
+        updateLeft(sorted[0]);
+        updateRight(sorted[sorted.length - 1]);
+        return;
+      }
+      if (palms.length !== 1) return;
+
+      const palm = palms[0];
+      if (pairLeftPalm && pairRightPalm) {
+        const leftDistance = Math.hypot(palm.x - pairLeftPalm.x, palm.y - pairLeftPalm.y);
+        const rightDistance = Math.hypot(palm.x - pairRightPalm.x, palm.y - pairRightPalm.y);
+        if (leftDistance <= rightDistance) updateLeft(palm);
+        else updateRight(palm);
+      } else if (palm.x < 0.5) updateLeft(palm);
+      else updateRight(palm);
+    }
+
+    function updateFastPairMotion(now) {
+      const rawDifference = pairLeftPalm.y - pairRightPalm.y;
+      pairSmoothedDifference = pairSmoothedDifference === null
+        ? rawDifference
+        : pairSmoothedDifference * 0.18 + rawDifference * 0.82;
+
+      if (pairAnchorDifference === null) {
+        pairAnchorDifference = pairSmoothedDifference;
+        pairExtremeDifference = pairSmoothedDifference;
+        setFeedback("พร้อมแล้ว—โยกสองมือสลับกันได้เต็มที่!");
+        return;
+      }
+
+      if (!pairMotionDirection) {
+        const movement = pairSmoothedDifference - pairAnchorDifference;
+        if (Math.abs(movement) < PAIR_START_MOVEMENT) {
+          setFeedback("เริ่มโยกมือหนึ่งขึ้น อีกมือลงได้เลย");
+          return;
+        }
+        pairMotionDirection = movement < 0 ? -1 : 1;
+        pairExtremeDifference = pairSmoothedDifference;
+        setFeedback("จับจังหวะแรกแล้ว—โยกกลับทันที!");
+        return;
+      }
+
+      if (pairMotionDirection < 0 && pairSmoothedDifference < pairExtremeDifference) {
+        pairExtremeDifference = pairSmoothedDifference;
+        return;
+      }
+      if (pairMotionDirection > 0 && pairSmoothedDifference > pairExtremeDifference) {
+        pairExtremeDifference = pairSmoothedDifference;
+        return;
+      }
+
+      const reversal = pairMotionDirection < 0
+        ? pairSmoothedDifference - pairExtremeDifference
+        : pairExtremeDifference - pairSmoothedDifference;
+      if (reversal < PAIR_REVERSAL_DISTANCE) return;
+
+      const swingDistance = Math.abs(pairExtremeDifference - pairAnchorDifference);
+      if (swingDistance >= PAIR_SWING_DISTANCE) {
+        // diff ลด = มือฝั่งซ้ายในข้อมูลสูงขึ้น, diff เพิ่ม = มือฝั่งขวาสูงขึ้น
+        const scoringPalm = pairMotionDirection < 0 ? pairLeftPalm : pairRightPalm;
+        awardPoint(scoringPalm, now);
+      }
+
+      pairAnchorDifference = pairExtremeDifference;
+      pairMotionDirection *= -1;
+      pairExtremeDifference = pairSmoothedDifference;
+    }
+
+    function stagePosition(palm) {
+      const stageWidth = video.clientWidth;
+      const stageHeight = video.clientHeight;
+      const sourceWidth = video.videoWidth || stageWidth;
+      const sourceHeight = video.videoHeight || stageHeight;
+      const scale = Math.max(stageWidth / sourceWidth, stageHeight / sourceHeight);
+      const shownWidth = sourceWidth * scale;
+      const shownHeight = sourceHeight * scale;
+      const offsetX = (stageWidth - shownWidth) / 2;
+      const offsetY = (stageHeight - shownHeight) / 2;
+      const displayX = currentFacingMode === "user" ? 1 - palm.x : palm.x;
+      return {
+        x: offsetX + displayX * shownWidth,
+        y: offsetY + palm.y * shownHeight
+      };
+    }
+
+    function showScorePop(palm) {
+      const position = stagePosition(palm);
+      const pop = document.createElement("span");
+      pop.className = "score-pop";
+      pop.textContent = "67";
+      pop.style.left = `${position.x}px`;
+      pop.style.top = `${position.y}px`;
+      scorePopLayer.appendChild(pop);
+      pop.addEventListener("animationend", () => pop.remove(), { once: true });
+    }
+
+    function awardPoint(palm, now) {
+      if (now - lastPointAt <= SCORE_COOLDOWN) return false;
+      lastPointAt = now;
+      score += 1;
+      scoreEl.textContent = score;
+      showScorePop(palm);
+      setFeedback("+1  SIX SEVEN!", true);
+      return true;
+    }
+
+    function updateMotion(result, now) {
+      const palms = (result.landmarks || []).map(palmCenter);
+      updatePairTracks(palms, now);
+
+      // โหมดแข่งขัน: ใช้สองมือ และจำตำแหน่งมือที่หลุดจากภาพสั้น ๆ ระหว่างการโยกเร็ว
+      const pairIsUsable = pairLeftPalm && pairRightPalm
+        && now - pairLeftSeenAt <= PAIR_TRACK_HOLD
+        && now - pairRightSeenAt <= PAIR_TRACK_HOLD;
+      if (pairIsUsable) {
+        pairLastUsableAt = now;
+        resetMotionTracking();
+        updateFastPairMotion(now);
+        return;
+      }
+
+      if (pairLastUsableAt && now - pairLastUsableAt <= PAIR_LOSS_GRACE) {
+        setFeedback("กำลังตามมือที่เบลอ—โยกต่อได้เลย!");
+        return;
+      }
+      if (pairLastUsableAt && now - pairLastUsableAt > PAIR_LOSS_GRACE) resetPairTracking();
+
+      // โหมดสำรอง: ใช้การกลับทิศของมือเดียวเมื่อกล้องเห็นอีกมือไม่ได้จริง ๆ
+      if (!palms.length) {
+        if (now - lastHandSeenAt > 500) {
+          resetMotionTracking();
+        }
+        setFeedback("ยกมืออย่างน้อยหนึ่งข้างให้เห็นในกล้อง");
+        return;
+      }
+
+      // เลือกตามมือที่อยู่ใกล้ตำแหน่งเดิมที่สุด ไม่สลับไปมาเมื่อกล้องเห็นมือไม่ครบ
+      let palm = palms[0];
+      if (trackedPalm) {
+        palm = palms.reduce((nearest, candidate) => {
+          const candidateDistance = Math.hypot(candidate.x - trackedPalm.x, candidate.y - trackedPalm.y);
+          const nearestDistance = Math.hypot(nearest.x - trackedPalm.x, nearest.y - trackedPalm.y);
+          return candidateDistance < nearestDistance ? candidate : nearest;
+        });
+        const jumpDistance = Math.hypot(palm.x - trackedPalm.x, palm.y - trackedPalm.y);
+        if (jumpDistance > TRACK_RESET_DISTANCE) resetMotionTracking();
+      }
+      trackedPalm = palm;
+      lastHandSeenAt = now;
+
+      // ทำตำแหน่งให้นิ่งขึ้น แต่ยังตามมือทันแม้กล้องมือถือส่งภาพแกว่งเล็กน้อย
+      smoothedPalm = smoothedPalm
+        ? { x: smoothedPalm.x * 0.65 + palm.x * 0.35, y: smoothedPalm.y * 0.62 + palm.y * 0.38 }
+        : { ...palm };
+      if (!motionStartPalm) {
+        motionStartPalm = { ...smoothedPalm };
+        setFeedback("เริ่มได้เลย! โยกมือขึ้น–ลง");
+        return;
+      }
+
+      if (!motionDirection) {
+        const deltaX = smoothedPalm.x - motionStartPalm.x;
+        const deltaY = smoothedPalm.y - motionStartPalm.y;
+        motionAxis = Math.abs(deltaX) > Math.abs(deltaY) ? "x" : "y";
+        const distanceFromAnchor = motionAxis === "x" ? deltaX : deltaY;
+        if (Math.abs(distanceFromAnchor) < START_MOVEMENT) {
+          setFeedback("โยกมือขึ้น–ลงให้กว้างอีกนิด");
+          return;
+        }
+        motionAnchorValue = motionStartPalm[motionAxis];
+        motionDirection = distanceFromAnchor < 0 ? -1 : 1;
+        motionExtremeValue = smoothedPalm[motionAxis];
+        setFeedback(motionDirection < 0 ? "ขึ้นแล้ว—ต่อด้วยลง" : "ลงแล้ว—ต่อด้วยขึ้น");
+        return;
+      }
+
+      const currentValue = smoothedPalm[motionAxis];
+      if (motionDirection < 0 && currentValue < motionExtremeValue) {
+        motionExtremeValue = currentValue;
+        setFeedback("ขึ้นต่ออีกนิด");
+        return;
+      }
+      if (motionDirection > 0 && currentValue > motionExtremeValue) {
+        motionExtremeValue = currentValue;
+        setFeedback("ลงต่ออีกนิด");
+        return;
+      }
+
+      const reversal = motionDirection < 0
+        ? currentValue - motionExtremeValue
+        : motionExtremeValue - currentValue;
+      if (reversal < REVERSAL_DISTANCE) return;
+
+      const completedDistance = Math.abs(motionExtremeValue - motionAnchorValue);
+      if (completedDistance >= SWING_DISTANCE) awardPoint(smoothedPalm, now);
+      else setFeedback("โยกให้กว้างขึ้นอีกนิด");
+
+      motionAnchorValue = motionExtremeValue;
+      motionDirection *= -1;
+      motionExtremeValue = currentValue;
+    }
+
+    function endGame() {
+      running = false;
+      cancelAnimationFrame(animationId);
+      if (score > bestScore) {
+        bestScore = score;
+        localStorage.setItem("67-motion-best", bestScore);
+        bestEl.textContent = bestScore;
+      }
+      startScreen.classList.remove("hidden");
+      startScreen.querySelector(".big").textContent = `ได้ ${score}!`;
+      startScreen.querySelector("p:not(.big)").innerHTML = score > 0
+        ? `สุดยอด! คะแนนของเธอคือ <b>${score}</b><br>ลองใหม่เพื่อทำลายสถิติกัน` 
+        : "ลองยกมือให้เห็นครบสองข้าง แล้วโยกขึ้น–ลงสลับกันให้ชัดขึ้น";
+      startButton.textContent = "เล่นอีกครั้ง";
+      startButton.disabled = false;
+      setFeedback("เกมจบแล้ว");
+    }
+
+    function gameLoop() {
+      if (!running) return;
+      const now = performance.now();
+      const secondsLeft = Math.max(0, Math.ceil((gameEndsAt - now) / 1000));
+      timerEl.textContent = secondsLeft;
+      if (secondsLeft <= 0) return endGame();
+
+      if (video.currentTime !== lastVideoTime && handLandmarker) {
+        lastVideoTime = video.currentTime;
+        const result = handLandmarker.detectForVideo(video, now);
+        drawHands(result);
+        updateMotion(result, now);
+      }
+      animationId = requestAnimationFrame(gameLoop);
+    }
+
+    async function startGame() {
+      try {
+        startButton.disabled = true;
+        startButton.textContent = "กำลังเปิดกล้อง...";
+        if (!handLandmarker) await setupHandTracking();
+        if (!video.srcObject) await startCamera(currentFacingMode);
+        await requestScreenWakeLock();
+
+        score = 0;
+        scoreEl.textContent = "0";
+        timerEl.textContent = GAME_SECONDS;
+        resetMotionTracking();
+        resetPairTracking();
+        lastHandSeenAt = 0;
+        lastPointAt = 0;
+        lastVideoTime = -1;
+        scorePopLayer.replaceChildren();
+        gameEndsAt = performance.now() + GAME_SECONDS * 1000;
+        running = true;
+        startScreen.classList.add("hidden");
+        setFeedback("เริ่ม! โยกมือขึ้น–ลงได้เลย");
+        gameLoop();
+      } catch (error) {
+        console.error(error);
+        setFeedback("เปิดกล้องไม่ได้: โปรดอนุญาตกล้อง และเปิดผ่าน Chrome/Live Server");
+        startButton.disabled = false;
+        startButton.textContent = "ลองเปิดกล้องอีกครั้ง";
+      }
+    }
+
+    startButton.addEventListener("click", startGame);
+    cameraButton.addEventListener("click", switchCamera);
+    fullscreenButton.addEventListener("click", toggleFullscreen);
+    document.addEventListener("fullscreenchange", updateFullscreenButton);
+    document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible" && keepScreenAwake) requestScreenWakeLock();
+    });
+    window.addEventListener("pagehide", () => {
+      keepScreenAwake = false;
+      if (wakeLock) wakeLock.release().catch(() => {});
+      stopCamera();
+    });
+    updateCameraButton();
+    updateFullscreenButton();
+  </script>
+</body>
+</html>
