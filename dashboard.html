@@ -185,7 +185,7 @@
         </div>
       </div>
       <div class="header-actions">
-        <a class="pill-button" href="index.html">← กลับไปหน้าเกม</a>
+        <a id="backToGameLink" class="pill-button" href="index.html">← กลับไปหน้าเกม</a>
         <button id="fullscreenButton" class="pill-button" type="button">⛶ เต็มจอ</button>
       </div>
     </header>
@@ -260,6 +260,21 @@
     const leaderboardList = document.querySelector("#leaderboardList");
     const emptyState = document.querySelector("#emptyState");
     const fullscreenButton = document.querySelector("#fullscreenButton");
+    const backToGameLink = document.querySelector("#backToGameLink");
+
+    const currentUrl = new URL(window.location.href);
+    const querySessionId = currentUrl.searchParams.get("s") || "";
+    const storedSessionId = sessionStorage.getItem("game67-session") || "";
+    const sessionId = /^[a-f0-9]{32}$/.test(querySessionId)
+      ? querySessionId
+      : storedSessionId;
+
+    if (/^[a-f0-9]{32}$/.test(sessionId)) {
+      sessionStorage.setItem("game67-session", sessionId);
+      const gameUrl = new URL("index.html", window.location.href);
+      gameUrl.searchParams.set("s", sessionId);
+      backToGameLink.href = gameUrl.href;
+    }
 
     function normalizedName(name) {
       return String(name || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("th");
