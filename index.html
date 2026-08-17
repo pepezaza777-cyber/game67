@@ -382,7 +382,7 @@
         </div>
         <div class="start-actions">
           <button id="startButton" type="button">เริ่มใช้กล้องและเล่น</button>
-          <a class="dashboard-link" href="dashboard.html">🏆 ดูอันดับ</a>
+          <a id="dashboardLink" class="dashboard-link" href="dashboard.html">🏆 ดูอันดับ</a>
         </div>
       </div>
     </section>
@@ -459,8 +459,21 @@
     const accessIcon = document.querySelector("#accessIcon");
     const accessTitle = document.querySelector("#accessTitle");
     const accessMessage = document.querySelector("#accessMessage");
+    const dashboardLink = document.querySelector("#dashboardLink");
 
-    const sessionId = new URL(window.location.href).searchParams.get("s") || "";
+    const currentUrl = new URL(window.location.href);
+    const querySessionId = currentUrl.searchParams.get("s") || "";
+    const storedSessionId = sessionStorage.getItem("game67-session") || "";
+    const sessionId = /^[a-f0-9]{32}$/.test(querySessionId)
+      ? querySessionId
+      : storedSessionId;
+
+    if (/^[a-f0-9]{32}$/.test(sessionId)) {
+      sessionStorage.setItem("game67-session", sessionId);
+      const dashboardUrl = new URL("dashboard.html", window.location.href);
+      dashboardUrl.searchParams.set("s", sessionId);
+      dashboardLink.href = dashboardUrl.href;
+    }
     let handLandmarker;
     let sessionExpiresAt = 0;
     let accessReady = false;
